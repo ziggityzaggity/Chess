@@ -1,0 +1,8 @@
+this is the config file for python chess program
+colours: (only those recognised by pygame will be loaded, otherwise defaults will be used)
+example_square = example_colour
+darksquare = gray  default is gray
+darkpossiblesquare = seagreen  default is seagreen
+lightpossiblesquare = lightgreen  default is lightgreen
+lightsquare = white  default is white
+currentsquare = yellow  default is yellow
