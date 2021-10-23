@@ -429,13 +429,6 @@ class Move:
 def main():
     board = Game()  # the actual chess board, just a matrix/2d list
     board.start()  # initialises colours, images, and the board
-    # TMP
-    board.state = [[None for i in range(8)] for j in range(8)]
-    board[(1, 2)] = Piece('w', 'K', 1, 2, board)
-    board[(4, 4)] = Piece('b', 'K', 4, 4, board)
-    board[(7, 7)] = Piece('w', 'p', 7, 7, board)
-
-    # TMP
     pg.init()
     screen = pg.display.set_mode((PX, PX))
     board.drawScreen(screen)
@@ -467,7 +460,6 @@ def main():
                         board.changeTurn()
                         board.drawScreen(screen)
                         ch = {'b': "BLACK", 'w': "WHITE"}
-                        # TODO: STALEMATE WHEN ONLY TWO KINGS ARE ON THE BOARD
                         if len(board.allPieces()) <= 2:  # if there are only two or fewer pieces on the board
                             # meaning that, legally, there can only be two kings and therefore no way for either side to win
                             # STALEMATE
