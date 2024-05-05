@@ -38,9 +38,6 @@ The move class, along with the getAllMoves function and parse module, generates 
 Just download the files and run chess.py, will require pygame and parse modules to be installed (via pip. In the chess directory type "py -m pip install -r requirements.txt". Only the textures are necessary, screenshots and config file are not.
 
 ## Appreciations:
-Per the CS50 course website and its gallery of projects for the previous year, I was able to see the creations of other students with the same idea to create a chess program.
-
-The piece textures and where I learned to use pygame are courtesy of [Eddie Sharick and his tutorial](https://www.youtube.com/watch?v=EnYui0e73Rs).
 
 Thanks to [W3Schools](https://www.w3schools.com/) and [GeeksforGeeks](https://www.geeksforgeeks.org/) for all the information and resources that they provide.
 
