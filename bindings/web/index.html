@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chess — WASM core demo</title>
+<style>
+  :root {
+    --light: #ebecd0;
+    --dark: #739552;
+    --sel: #f6f669;
+    --move-dot: rgba(0,0,0,.22);
+    --last: rgba(255,236,120,.55);
+    --check: #e57373;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; gap: 14px; padding: 18px;
+    font: 15px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: #2b2b2b; color: #eee;
+  }
+  h1 { font-size: 18px; font-weight: 600; margin: 4px 0; }
+  #status { min-height: 22px; font-weight: 600; letter-spacing: .2px; }
+  /* Responsive square board: clamps between 280 and 560px, stays square. */
+  #board {
+    width: min(92vw, 560px); aspect-ratio: 1 / 1;
+    display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+    border-radius: 8px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.45);
+    user-select: none; touch-action: manipulation;
+  }
+  .sq {
+    position: relative; display: flex; align-items: center; justify-content: center;
+    font-size: min(9vw, 54px); line-height: 1; cursor: pointer;
+  }
+  .sq.light { background: var(--light); }
+  .sq.dark  { background: var(--dark); }
+  .sq.sel::after {
+    content: ""; position: absolute; inset: 0; background: var(--sel); opacity: .65;
+  }
+  .sq.last::before {
+    content: ""; position: absolute; inset: 0; background: var(--last);
+  }
+  .sq.check { box-shadow: inset 0 0 0 9999px rgba(229,115,115,.45); }
+  .piece { position: relative; z-index: 2; }
+  .piece.w { color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.45), 0 0 2px rgba(0,0,0,.6); }
+  .piece.b { color: #202020; text-shadow: 0 1px 1px rgba(255,255,255,.25); }
+  /* legal-move markers */
+  .dot::after {
+    content: ""; position: absolute; z-index: 3; width: 30%; height: 30%;
+    border-radius: 50%; background: var(--move-dot);
+  }
+  .capture::after {
+    content: ""; position: absolute; z-index: 1; inset: 6%;
+    border: 5px solid var(--move-dot); border-radius: 50%;
+  }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  button {
+    background: #3d3d3d; color: #eee; border: 1px solid #555; border-radius: 6px;
+    padding: 8px 14px; font: inherit; cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: #4a4a4a; }
+  button:disabled { opacity: .4; cursor: default; }
+  #moves {
+    width: min(92vw, 560px); min-height: 40px; max-height: 120px; overflow-y: auto;
+    background: #222; border: 1px solid #444; border-radius: 6px; padding: 8px 10px;
+    font-family: ui-monospace, Consolas, monospace; font-size: 13px; color: #cdd;
+  }
+  /* promotion picker */
+  #promo {
+    position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.5); z-index: 10;
+  }
+  #promo .card { background: #333; padding: 14px; border-radius: 10px; display: flex; gap: 8px; }
+  #promo button { font-size: 34px; width: 64px; height: 64px; padding: 0; }
+</style>
+</head>
+<body>
+  <h1>Chess — C++ core compiled to WebAssembly</h1>
+  <div id="status">Loading engine…</div>
+  <div id="board"></div>
+  <div class="controls">
+    <button id="newBtn">New game</button>
+    <button id="undoBtn">Undo</button>
+    <button id="redoBtn">Redo</button>
+    <button id="flipBtn">Flip</button>
+  </div>
+  <div id="moves"></div>
+
+  <div id="promo"><div class="card"></div></div>
+
+  <script src="chessengine.js"></script>
+  <script>
+  const GLYPH = {
+    K:'♔', Q:'♕', R:'♖', B:'♗', N:'♘', P:'♙',
+    k:'♚', q:'♛', r:'♜', b:'♝', n:'♞', p:'♟'
+  };
+  const RESULT = ['', 'White wins', 'Black wins', 'Draw'];
+  const DRAW   = ['', 'stalemate', '50-move rule', 'threefold repetition', 'insufficient material'];
+
+  createChessEngine().then((Module) => {
+    const game = new Module.ChessGame();
+
+    const boardEl  = document.getElementById('board');
+    const statusEl = document.getElementById('status');
+    const movesEl  = document.getElementById('moves');
+    const promoEl  = document.getElementById('promo');
+    const promoCard = promoEl.querySelector('.card');
+
+    let flipped = false;
+    let selected = -1;          // logical square 0..63, or -1
+    let legalTargets = [];      // target squares for the selected piece
+
+    // visual cell index (0 top-left) -> logical square, honoring flip
+    const toLogical = (vis) => flipped ? 63 - vis : vis;
+
+    function render() {
+      const board = game.boardString();
+      const lastUci = game.lastMoveUci();
+      let lastFrom = -1, lastTo = -1;
+      if (lastUci.length >= 4) {
+        lastFrom = sqFromName(lastUci.slice(0,2));
+        lastTo   = sqFromName(lastUci.slice(2,4));
+      }
+      const checkSq = game.inCheck() ? game.kingSquare(game.turn()) : -1;
+
+      boardEl.innerHTML = '';
+      for (let vis = 0; vis < 64; vis++) {
+        const sq = toLogical(vis);
+        const r = sq >> 3, c = sq & 7;
+        const cell = document.createElement('div');
+        cell.className = 'sq ' + (((r + c) & 1) ? 'dark' : 'light');
+        if (sq === selected)               cell.classList.add('sel');
+        if (sq === lastFrom || sq === lastTo) cell.classList.add('last');
+        if (sq === checkSq)                cell.classList.add('check');
+
+        const ch = board[sq];
+        if (ch !== '.') {
+          const span = document.createElement('span');
+          span.className = 'piece ' + (ch === ch.toUpperCase() ? 'w' : 'b');
+          span.textContent = GLYPH[ch];
+          cell.appendChild(span);
+        }
+        if (legalTargets.includes(sq))
+          cell.classList.add(ch === '.' ? 'dot' : 'capture');
+
+        cell.addEventListener('click', () => onSquare(sq));
+        boardEl.appendChild(cell);
+      }
+      updateStatus();
+      updateControls();
+    }
+
+    function onSquare(sq) {
+      const board = game.boardString();
+      const piece = board[sq];
+      const sideChar = game.turn() === 0 ? 'w' : 'b';
+      const isOwn = piece !== '.' &&
+        ((sideChar === 'w') === (piece === piece.toUpperCase()));
+
+      if (selected === -1) {
+        if (isOwn) selectSquare(sq);
+        return;
+      }
+      if (sq === selected) { clearSelection(); render(); return; }
+      if (legalTargets.includes(sq)) {
+        if (game.isPromotion(selected, sq)) askPromotion(selected, sq);
+        else play(selected, sq, '');
+        return;
+      }
+      // clicked elsewhere: reselect own piece or clear
+      if (isOwn) selectSquare(sq);
+      else { clearSelection(); render(); }
+    }
+
+    function selectSquare(sq) {
+      selected = sq;
+      legalTargets = Array.from(game.movesFrom(sq));  // movesFrom returns a JS array
+      render();
+    }
+    function clearSelection() { selected = -1; legalTargets = []; }
+
+    function play(from, to, promo) {
+      const res = game.doMove(from, to, promo);
+      clearSelection();
+      if (res.ok) renderMoves();
+      render();
+    }
+
+    function askPromotion(from, to) {
+      const white = game.turn() === 0;
+      const opts = white ? ['Q','R','B','N'] : ['q','r','b','n'];
+      promoCard.innerHTML = '';
+      opts.forEach(p => {
+        const b = document.createElement('button');
+        b.textContent = GLYPH[p];
+        b.className = 'piece ' + (white ? 'w' : 'b');
+        b.onclick = () => { promoEl.style.display = 'none'; play(from, to, p.toLowerCase()); };
+        promoCard.appendChild(b);
+      });
+      promoEl.style.display = 'flex';
+    }
+
+    function updateStatus() {
+      if (game.isGameOver()) {
+        const res = game.result();
+        let msg = RESULT[res];
+        if (res === 3) msg += ' (' + DRAW[game.drawReason()] + ')';
+        else if (game.isCheckmate()) msg += ' by checkmate';
+        statusEl.textContent = msg;
+        return;
+      }
+      const side = game.turn() === 0 ? 'White' : 'Black';
+      statusEl.textContent = side + ' to move' + (game.inCheck() ? ' — check!' : '');
+    }
+    function updateControls() {
+      document.getElementById('undoBtn').disabled = !game.canUndo();
+      document.getElementById('redoBtn').disabled = !game.canRedo();
+    }
+    function renderMoves() { movesEl.textContent = game.pgn(); }
+
+    // helpers
+    function sqFromName(s) { return (8 - (s.charCodeAt(1) - 48)) * 8 + (s.charCodeAt(0) - 97); }
+
+    document.getElementById('newBtn').onclick  = () => { game.reset(); clearSelection(); renderMoves(); render(); };
+    document.getElementById('undoBtn').onclick = () => { if (game.undo()) { clearSelection(); renderMoves(); render(); } };
+    document.getElementById('redoBtn').onclick = () => { if (game.redo()) { clearSelection(); renderMoves(); render(); } };
+    document.getElementById('flipBtn').onclick = () => { flipped = !flipped; render(); };
+
+    renderMoves();
+    render();
+  }).catch(err => {
+    document.getElementById('status').textContent = 'Failed to load engine: ' + err;
+  });
+  </script>
+</body>
+</html>

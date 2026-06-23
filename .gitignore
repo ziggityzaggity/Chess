@@ -8,6 +8,7 @@
 *.dll
 *.wasm
 build/
+build-web/
 Debug/
 Release/
 x64/
