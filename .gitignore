@@ -1,0 +1,22 @@
+# Build artifacts
+*.exe
+*.out
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.wasm
+build/
+Debug/
+Release/
+x64/
+
+# IDE / editor
+.vs/
+.vscode/
+.cph/
+
+# Python
+__pycache__/
+*.pyc
