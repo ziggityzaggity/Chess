@@ -26,3 +26,17 @@ class Random(AI):
     def getMove(self, moves)-> Move: 
         return moves[randint(0, len(moves)-1)]
     
+
+class Minimax(AI):
+    
+    def getMove(self, moves)-> Move:
+        ratings = []
+        self.levels = 10  # referring to the number of layers deep
+        for move in moves:
+            ratings.append(self.rate(makeBoardMove(self.board, move), 1))
+            
+        
+def makeBoardMove(board, move)-> Game:
+    cp = deepcopy(board)
+    cp.move(move)
+    return cp

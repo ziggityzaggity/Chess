@@ -2,6 +2,7 @@ import pygame as pg
 from time import sleep
 from objects import *  # Piece, Game, Move
 from ai import *
+import random
 
 L = 8  # length of the chess board
 PX = 480  # number of pixels long that the height/width of the board is
@@ -17,7 +18,7 @@ def main():
     board.drawScreen(screen)
     running = True
     selected = None
-    robot = Random(board, ['w', 'b'][int(bool(randbytes(1)))])
+    robot = Random(board, random.choice(['w', 'b']))
     while running:
         sleep(0.1)
         if board.turn == robot.colour:# THIS IS WHERE THE ROBOT MOVES THEIR PIECES

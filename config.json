@@ -1,8 +1,8 @@
 {
     "colours": {
-        "darksquare": "gray",
+        "darksquare": "grey",
         "lightsquare": "white",
-        "currentsquare": "yellow",
+        "currentsquare": "blue",
         "darkpossiblesquare": "seagreen",
         "lightpossiblesquare": "lightgreen",
         "lastLightSquare": "",
