@@ -1,0 +1,25 @@
+{
+  "name": "react-native-chess-engine",
+  "version": "0.1.0",
+  "description": "JSI binding (Nitro Modules) exposing the header-only C++ chess core to React Native",
+  "main": "src/index.ts",
+  "scripts": {
+    "codegen": "nitro-codegen"
+  },
+  "peerDependencies": {
+    "react-native": "*",
+    "react-native-nitro-modules": "*"
+  },
+  "devDependencies": {
+    "nitro-codegen": "*"
+  },
+  "files": [
+    "src",
+    "cpp",
+    "android",
+    "ios",
+    "nitro.json",
+    "react-native-chess-engine.podspec",
+    "!**/nitrogen"
+  ]
+}

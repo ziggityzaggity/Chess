@@ -1,0 +1,53 @@
+// Android build for the ChessEngine Nitro module.
+//
+// TEMPLATE — follows Nitro Modules' standard module layout. Run `npm run
+// codegen` first (produces nitrogen/generated/). Verify versions against the
+// Nitro you install. The engine itself is header-only, so there is nothing to
+// compile from core/ except headers — see CMakeLists.txt for the include path.
+
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath "com.android.tools.build:gradle:8.+"
+  }
+}
+
+apply plugin: "com.android.library"
+
+android {
+  namespace "com.margelo.nitro.chessengine"
+  compileSdk 35
+
+  defaultConfig {
+    minSdk 24
+    externalNativeBuild {
+      cmake {
+        cppFlags "-std=c++17", "-O3", "-fexceptions", "-frtti"
+        arguments "-DANDROID_STL=c++_shared"
+      }
+    }
+  }
+
+  externalNativeBuild {
+    cmake {
+      path "CMakeLists.txt"
+    }
+  }
+
+  buildFeatures {
+    prefab true
+  }
+}
+
+repositories {
+  google()
+  mavenCentral()
+}
+
+dependencies {
+  implementation "com.facebook.react:react-android"
+  implementation project(":react-native-nitro-modules")
+}
