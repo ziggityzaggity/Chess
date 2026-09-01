@@ -17,6 +17,13 @@ target_link_options(chessengine PRIVATE
     -sFILESYSTEM=0                        # we use no FS -> smaller output
 )
 
+# -DSINGLE_FILE=ON embeds the wasm (base64) into the .js, producing one
+# self-contained file — handy for single-file hosting / embedding in a page.
+option(SINGLE_FILE "Embed the wasm into chessengine.js" OFF)
+if(SINGLE_FILE)
+    target_link_options(chessengine PRIVATE -sSINGLE_FILE=1)
+endif()
+
 add_custom_command(TARGET chessengine POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
             ${CMAKE_CURRENT_SOURCE_DIR}/index.html

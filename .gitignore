@@ -9,6 +9,8 @@
 *.wasm
 build/
 build-web/
+build-artifact/
+build-single/
 Debug/
 Release/
 x64/
