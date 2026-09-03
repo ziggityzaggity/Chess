@@ -1,0 +1,79 @@
+name: Build engine (WASM)
+
+# Rebuilds the C++ chess engine to WebAssembly whenever its source changes, and
+# commits the artifact into web/public/engine so Vercel deploys it automatically.
+#
+# Why this design: the WASM engine (web/public/engine/*) is committed to the
+# repo so Vercel's build needs no C++/Emscripten toolchain and stays fast. This
+# workflow keeps that committed artifact in sync with the source: edit the C++,
+# push, and the rebuilt engine lands on the site with no manual step. A native
+# correctness gate (perft + game rules) and a WASM smoke test run first, so a
+# broken engine is never committed over the last-good one.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "core/**"
+      - "bindings/web/**"
+      - "CMakeLists.txt"
+      - ".github/workflows/engine.yml"
+      - ".github/scripts/engine-smoke.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: engine-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail fast on logic errors before spending time on the WASM toolchain.
+      # perft proves move generation (castling, en passant, promotion, checks);
+      # game_demo asserts the rules layer (checkmate, draws, SAN, castling).
+      - name: Native correctness gate
+        run: |
+          g++ -O2 -std=c++17 core/perft.cpp     -o /tmp/perft
+          g++ -O2 -std=c++17 core/game_demo.cpp -o /tmp/game_demo
+          /tmp/perft
+          /tmp/game_demo
+
+      - name: Set up Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+          actions-cache-folder: emsdk-cache
+
+      - name: Build WASM engine
+        run: |
+          emcmake cmake -S . -B build-web -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-web
+
+      - name: Stage engine into web/public/engine
+        run: |
+          mkdir -p web/public/engine
+          cp build-web/bindings/web/chessengine.js  web/public/engine/
+          cp build-web/bindings/web/chessengine.wasm web/public/engine/
+
+      - name: WASM smoke test
+        run: node .github/scripts/engine-smoke.mjs
+
+      - name: Commit rebuilt engine if it changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- web/public/engine; then
+            echo "Engine artifact unchanged — nothing to commit."
+          else
+            git add web/public/engine
+            # [skip ci] and the path filter above both keep this commit from
+            # re-triggering the workflow (it only touches web/public/engine).
+            git commit -m "ci: rebuild WASM engine from source [skip ci]"
+            git push
+          fi

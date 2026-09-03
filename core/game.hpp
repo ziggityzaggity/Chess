@@ -214,25 +214,32 @@ public:
         for (uint64_t h : repetition_) if (h == k) ++n;
         return n >= 3;
     }
+    // A "dead position" in which no sequence of legal moves can deliver mate,
+    // so the game is an automatic draw. This must stay strict: it may never
+    // flag a position where mate is still forcible — notably K+B+N vs K, which
+    // is a known win, and K+N+N vs K, where mate remains possible.
     bool isInsufficientMaterial() const {
-        int minors = 0; bool bishopLight = false, bishopDark = false;
+        int knights = 0, bishops = 0;
+        bool bishopLight = false, bishopDark = false;
         for (int s = 0; s < NSQ; ++s) {
             uint8_t p = board_.sq[s];
             if (!p) continue;
             switch (pieceType(p)) {
                 case KING: break;
                 case BISHOP:
-                    ++minors;
+                    ++bishops;
                     ((rowOf(s) + colOf(s)) & 1 ? bishopDark : bishopLight) = true;
                     break;
-                case KNIGHT: ++minors; break;
-                default: return false;   // pawn / rook / queen -> sufficient
+                case KNIGHT: ++knights; break;
+                default: return false;   // pawn / rook / queen -> mate possible
             }
         }
-        if (minors <= 1) return true;                       // K(K), KminorK
-        if (minors == 2 && !(bishopLight && bishopDark))    // same-colour bishops
-            return true;
-        return false;
+        // No knights: any number of bishops that all sit on one colour can
+        // never mate. Covers K vs K, K+B vs K, and same-colour K+B vs K+B.
+        if (knights == 0) return !(bishopLight && bishopDark);
+        // A lone knight cannot mate. A knight alongside any other minor
+        // (K+B+N, K+N+N) can, so those are not dead positions.
+        return knights == 1 && bishops == 0;
     }
     bool isGameOver() const {
         return isCheckmate() || isStalemate() || isFiftyMove() ||

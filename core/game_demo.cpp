@@ -80,6 +80,40 @@ int main() {
         CHECK(g2.isInsufficientMaterial());
         Game g3("8/8/4k3/8/8/3K1R2/8/8 w - - 0 1");        // K+R vs K -> sufficient
         CHECK(!g3.isInsufficientMaterial());
+        Game g4("8/8/4k3/8/8/3K1N2/8/8 w - - 0 1");        // K+N vs K -> draw
+        CHECK(g4.isInsufficientMaterial());
+        // K+B+N vs K is a forced WIN — must never be flagged insufficient.
+        Game g5("8/8/8/4k3/8/8/8/2NBK3 w - - 0 1");
+        CHECK(!g5.isInsufficientMaterial());
+        // K+N+N vs K: mate remains possible, so not a dead position.
+        Game g6("8/8/8/4k3/8/8/8/1N1NK3 w - - 0 1");
+        CHECK(!g6.isInsufficientMaterial());
+        // Same-colour bishops (c1,e1 are both dark) cannot mate -> draw.
+        Game g7("8/8/8/4k3/8/8/8/2B1BK2 w - - 0 1");
+        CHECK(g7.isInsufficientMaterial());
+        // Opposite-colour bishops (c1 dark, f1 light) can mate -> sufficient.
+        Game g8("8/8/8/4k3/8/8/8/2B2BK1 w - - 0 1");
+        CHECK(!g8.isInsufficientMaterial());
+    }
+
+    printf("[castling moves the king and the rook]\n");
+    {
+        // White O-O: king e1->g1, rook h1->f1.
+        Game wk("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
+        Move m;
+        CHECK(wk.parseUci("e1g1", m) && wk.san(m) == "O-O" && wk.push(m));
+        CHECK(pieceGlyph(wk.pieceAt(sqOf(7, 6))) == 'K');   // king on g1
+        CHECK(pieceGlyph(wk.pieceAt(sqOf(7, 5))) == 'R');   // rook on f1
+        CHECK(wk.pieceAt(sqOf(7, 4)) == 0);                 // e1 empty
+        CHECK(wk.undo());                                   // unmake restores both
+        CHECK(pieceGlyph(wk.pieceAt(sqOf(7, 4))) == 'K');
+        CHECK(pieceGlyph(wk.pieceAt(sqOf(7, 7))) == 'R');
+
+        // Black O-O-O: king e8->c8, rook a8->d8.
+        Game bq("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1");
+        CHECK(bq.parseUci("e8c8", m) && bq.san(m) == "O-O-O" && bq.push(m));
+        CHECK(pieceGlyph(bq.pieceAt(sqOf(0, 2))) == 'k');   // king on c8
+        CHECK(pieceGlyph(bq.pieceAt(sqOf(0, 3))) == 'r');   // rook on d8
     }
 
     printf("[threefold repetition]\n");
