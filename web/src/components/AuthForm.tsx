@@ -35,8 +35,8 @@ export function AuthForm({
       return;
     }
     setNotice(
-      `We emailed ${email.trim()}. Click the sign-in link in it on this ` +
-        `device — or enter the one-time code below if your email shows one.`
+      `We emailed a 6-digit code to ${email.trim()} — enter it below. ` +
+        `The sign-in link in the email works too.`
     );
     setStep("code");
   }
