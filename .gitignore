@@ -27,3 +27,4 @@ __pycache__/
 # Claude
 */.claude/
 */claude.md
+*/agents.md
