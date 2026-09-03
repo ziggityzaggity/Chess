@@ -1,23 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { KnightMark } from "@/components/Logo";
 import { useAuth } from "@/lib/auth";
 
 export default function OnboardingPage() {
-  const { login } = useAuth();
+  const { user, ready, updateProfile } = useAuth();
   const router = useRouter();
   const [nickname, setNickname] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const canFinish = nickname.trim().length > 0;
+  // Onboarding needs a session; already-onboarded users go straight in.
+  useEffect(() => {
+    if (!ready) return;
+    if (!user) router.replace("/register");
+    else if (!user.needsOnboarding) router.replace("/play");
+  }, [ready, user, router]);
 
-  function finish(e: React.FormEvent) {
+  const canFinish = nickname.trim().length > 0 && !busy;
+
+  async function finish(e: React.FormEvent) {
     e.preventDefault();
     if (!canFinish) return;
-    // No real account — this starts the mock session with the chosen nickname.
-    login({ name: nickname.trim(), birthDate: birthDate || undefined });
+    setBusy(true);
+    setError(null);
+    const res = await updateProfile({
+      nickname: nickname.trim(),
+      birthDate: birthDate || null,
+    });
+    setBusy(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
     router.push("/play");
   }
 
@@ -77,12 +95,18 @@ export default function OnboardingPage() {
             </span>
           </label>
 
+          {error && (
+            <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {error}
+            </p>
+          )}
+
           <button
             type="submit"
             disabled={!canFinish}
             className="w-full rounded-2xl bg-ink px-6 py-3.5 text-base font-semibold text-paper shadow-card transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Finish
+            {busy ? "Saving…" : "Finish"}
           </button>
 
           <p className="text-center text-xs text-muted">

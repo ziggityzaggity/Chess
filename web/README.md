@@ -2,17 +2,18 @@
 
 A [Next.js](https://nextjs.org) (App Router + TypeScript + Tailwind) frontend for
 the C++ chess core in this repo. The engine is compiled to WebAssembly and driven
-entirely client-side — there is no backend.
+entirely client-side; accounts and data live in [Supabase](https://supabase.com)
+(auth + Postgres), which the browser talks to directly under row-level security.
 
 The UI follows the `chess_web_app_ui_concepts` design: a light, warm "app shell"
 for everything around the game, and an immersive dark board for play itself.
 
 - **Home** (`/`) — landing page ("Play with purpose").
-- **Login** (`/login`) / **Register** (`/register`) — sign-in / sign-up *design*
-  only. There is no real authentication; the navbar shows **Log in** + **Register**
-  when signed out. Registration leads to **Onboarding** (`/onboarding`), which asks
-  for a nickname (required) and birth date (optional) and then starts a mock,
-  localStorage-backed session — so the navbar swaps to a profile avatar with a menu.
+- **Login** (`/login`) / **Register** (`/register`) — real Supabase auth with two
+  options: a **one-time code by email** (OTP) and **Continue with Google** (OAuth,
+  completed by `/auth/callback`). Registration leads to **Onboarding**
+  (`/onboarding`), which saves a nickname (required) and birth date (optional) to
+  the user's `profiles` row — then the navbar swaps to a profile avatar with a menu.
 - **New game** (`/play`) — choose a mode (bot / pass-and-play) and time control,
   then launch a game.
 - **Game** (`/game`) — the live board: click-to-move with legal-move highlighting,

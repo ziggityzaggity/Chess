@@ -1,0 +1,48 @@
+# Supabase CLI config for local development (`supabase start`) and for
+# linking this repo to the hosted PyChess project (`supabase link`).
+# Hosted-project settings (auth providers, email templates) are managed in the
+# dashboard; this file mirrors the ones that matter for local dev.
+
+project_id = "pychess"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+# Local mail-catcher: one-time sign-in codes land here during development.
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+otp_length = 6
+otp_expiry = 3600
+
+# "Continue with Google" — supply the OAuth client via env vars:
+#   SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID / _SECRET
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+redirect_uri = "http://localhost:54321/auth/v1/callback"

@@ -1,34 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { KnightMark } from "@/components/Logo";
+import { AuthForm } from "@/components/AuthForm";
 import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
-  const { user, login } = useAuth();
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
+  const { user } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const searchParams = useSearchParams();
+  const oauthFailed = searchParams.get("error") === "oauth";
 
-  // Already signed in? Send them into the app.
+  // Already signed in? Send them into the app (or to finish onboarding).
   useEffect(() => {
-    if (user) router.replace("/play");
+    if (user) router.replace(user.needsOnboarding ? "/onboarding" : "/play");
   }, [user, router]);
-
-  // NOTE: no real authentication. Submitting just starts a mock session so the
-  // rest of the app can show the signed-in experience (avatar, etc.).
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    login({ email });
-    router.push("/play");
-  }
-
-  function handleGoogle() {
-    login({ name: "Ali Rashid", email: "ali@example.com" });
-    router.push("/play");
-  }
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
@@ -39,70 +35,29 @@ export default function LoginPage() {
             Welcome back
           </h1>
           <p className="mt-3 text-base text-muted">
-            Sign in to sync games, ratings, and preferences.
+            Sign in with a one-time email code or your Google account.
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-9 max-w-md space-y-5">
-            <Field label="Email" htmlFor="email">
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-2xl border border-line bg-white px-4 py-3.5 text-ink shadow-sm outline-none transition placeholder:text-muted-light focus:border-gold/60 focus:ring-4 focus:ring-gold/10"
-              />
-            </Field>
-
-            <div>
-              <Field label="Password" htmlFor="password">
-                <input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-2xl border border-line bg-white px-4 py-3.5 text-ink shadow-sm outline-none transition placeholder:text-muted-light focus:border-gold/60 focus:ring-4 focus:ring-gold/10"
-                />
-              </Field>
-              <div className="mt-2 text-right">
-                <button
-                  type="button"
-                  className="text-sm font-semibold text-gold-600 transition hover:text-gold"
-                >
-                  Forgot password?
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full rounded-2xl bg-ink px-6 py-3.5 text-base font-semibold text-paper shadow-card transition hover:bg-ink-800"
-            >
-              Log in
-            </button>
-
-            <button
-              type="button"
-              onClick={handleGoogle}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-line bg-white px-6 py-3.5 text-base font-semibold text-ink transition hover:bg-paper-50"
-            >
-              <GoogleIcon className="h-5 w-5" />
-              Continue with Google
-            </button>
-
-            <p className="pt-1 text-center text-sm text-muted">
-              New here?{" "}
-              <Link
-                href="/register"
-                className="font-semibold text-ink transition hover:text-gold-600"
-              >
-                Create an account
-              </Link>
+          {oauthFailed && (
+            <p className="mt-6 max-w-md rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              Google sign-in didn&apos;t complete — please try again.
             </p>
-          </form>
+          )}
+
+          <AuthForm
+            mode="login"
+            onDone={() => router.push("/play")}
+          />
+
+          <p className="mt-5 max-w-md pt-1 text-center text-sm text-muted">
+            New here?{" "}
+            <Link
+              href="/register"
+              className="font-semibold text-ink transition hover:text-gold-600"
+            >
+              Create an account
+            </Link>
+          </p>
         </div>
 
         {/* Right — brand panel */}
@@ -121,47 +76,5 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
-  );
-}
-
-function Field({
-  label,
-  htmlFor,
-  children,
-}: {
-  label: string;
-  htmlFor: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label htmlFor={htmlFor} className="block">
-      <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-muted">
-        {label}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-function GoogleIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
-      <path
-        fill="#EA4335"
-        d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.1 0 24 0 14.6 0 6.5 5.4 2.5 13.2l7.9 6.1C12.2 13.2 17.6 9.5 24 9.5z"
-      />
-      <path
-        fill="#4285F4"
-        d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9.1h12.4c-.5 2.9-2.2 5.3-4.6 7l7.2 5.6c4.2-3.9 6.6-9.6 6.6-16.1z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M10.4 28.7c-.5-1.4-.7-2.9-.7-4.7s.3-3.3.7-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.5 10.8l7.9-6.1z"
-      />
-      <path
-        fill="#34A853"
-        d="M24 48c6.1 0 11.3-2 15-5.5l-7.2-5.6c-2 1.4-4.6 2.2-7.8 2.2-6.4 0-11.8-3.7-13.6-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"
-      />
-    </svg>
   );
 }
