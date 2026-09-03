@@ -1,12 +1,28 @@
-# Gambit — web frontend
+# PyChess — web frontend
 
 A [Next.js](https://nextjs.org) (App Router + TypeScript + Tailwind) frontend for
 the C++ chess core in this repo. The engine is compiled to WebAssembly and driven
 entirely client-side — there is no backend.
 
-- **Home** (`/`) — landing page.
-- **Play** (`/play`) — click-to-move board with legal-move highlighting,
-  promotion picker, undo/redo, board flip and a live move list.
+The UI follows the `chess_web_app_ui_concepts` design: a light, warm "app shell"
+for everything around the game, and an immersive dark board for play itself.
+
+- **Home** (`/`) — landing page ("Play with purpose").
+- **Login** (`/login`) / **Register** (`/register`) — sign-in / sign-up *design*
+  only. There is no real authentication; the navbar shows **Log in** + **Register**
+  when signed out. Registration leads to **Onboarding** (`/onboarding`), which asks
+  for a nickname (required) and birth date (optional) and then starts a mock,
+  localStorage-backed session — so the navbar swaps to a profile avatar with a menu.
+- **New game** (`/play`) — choose a mode (bot / pass-and-play) and time control,
+  then launch a game.
+- **Game** (`/game`) — the live board: click-to-move with legal-move highlighting,
+  promotion picker, check/checkmate/draw detection, an interactive PGN move list
+  (click any move to jump, first/prev/next/last navigation), clocks, resign / draw,
+  board flip, and an optional greedy **bot** opponent (`?mode=bot`). All of this is
+  the C++ engine wired in via [`useChessGame`](src/lib/useChessGame.ts).
+- **Assistant** (`/assistant`) — chat UI design (a preview; not wired to a model).
+- **Settings** (`/settings`) — board theme (Walnut / Stone / Forest, applied live
+  via CSS variables) and board toggles, persisted to localStorage.
 
 ## How it connects to the engine
 

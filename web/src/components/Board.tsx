@@ -9,6 +9,8 @@ interface BoardProps {
   legalTargets: number[];
   flipped: boolean;
   onSquareClick: (square: number) => void;
+  showCoordinates?: boolean;
+  highlightLastMove?: boolean;
 }
 
 export function Board({
@@ -17,6 +19,8 @@ export function Board({
   legalTargets,
   flipped,
   onSquareClick,
+  showCoordinates = true,
+  highlightLastMove = true,
 }: BoardProps) {
   const cells = [];
 
@@ -32,7 +36,9 @@ export function Board({
     const src = pieceSrc(glyph);
 
     const isSelected = sq === selected;
-    const isLastMove = sq === snapshot.lastFrom || sq === snapshot.lastTo;
+    const isLastMove =
+      highlightLastMove &&
+      (sq === snapshot.lastFrom || sq === snapshot.lastTo);
     const isCheck = sq === snapshot.checkSquare;
     const isTarget = legalTargets.includes(sq);
     const isCapture = isTarget && glyph !== ".";
@@ -57,14 +63,14 @@ export function Board({
         )}
 
         {/* coordinate guides (lichess-style corner labels) */}
-        {visCol === 0 && (
+        {showCoordinates && visCol === 0 && (
           <span
             className={`pointer-events-none absolute left-0.5 top-0.5 text-[9px] font-bold sm:text-[11px] ${labelColor}`}
           >
             {8 - row}
           </span>
         )}
-        {visRow === 7 && (
+        {showCoordinates && visRow === 7 && (
           <span
             className={`pointer-events-none absolute bottom-0 right-0.5 text-[9px] font-bold sm:text-[11px] ${labelColor}`}
           >

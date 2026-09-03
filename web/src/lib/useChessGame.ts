@@ -2,15 +2,24 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadEngine, type ChessGame } from "./engine";
+import { chooseBotMove } from "./bot";
 
 export type EngineStatus = "loading" | "ready" | "error";
 
 export type PromoPiece = "q" | "r" | "b" | "n";
+export type GameMode = "local" | "bot";
 
 export interface PendingPromotion {
   from: number;
   to: number;
   color: number; // 0 white, 1 black
+}
+
+// Result forced by resignation / draw agreement (the engine has no concept of
+// these, so we track them alongside its own game-over detection).
+export interface ManualResult {
+  result: number; // 1 white wins, 2 black wins, 3 draw
+  label: string;
 }
 
 // A flat, render-ready view of the engine state. Recomputed after every action
@@ -64,33 +73,56 @@ function snapshotOf(game: ChessGame): GameSnapshot {
   };
 }
 
+export interface UseChessGameOptions {
+  mode?: GameMode;
+  /** Which colour the bot plays (0 white, 1 black). Only used when mode="bot". */
+  botColor?: number;
+}
+
 export interface UseChessGame {
   status: EngineStatus;
   error: string | null;
   snapshot: GameSnapshot | null;
+  sanHistory: string[];
   selected: number;
   legalTargets: number[];
   flipped: boolean;
   promotion: PendingPromotion | null;
+  mode: GameMode;
+  botColor: number;
+  botThinking: boolean;
+  manualResult: ManualResult | null;
   onSquareClick: (square: number) => void;
   choosePromotion: (piece: PromoPiece) => void;
   cancelPromotion: () => void;
   newGame: () => void;
   undo: () => void;
   redo: () => void;
+  toStart: () => void;
+  toEnd: () => void;
+  goToPly: (ply: number) => void;
   flip: () => void;
+  resign: () => void;
+  agreeDraw: () => void;
 }
 
-export function useChessGame(): UseChessGame {
+export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
+  const mode = options.mode ?? "local";
+  const botColor = options.botColor ?? 1;
+
   const gameRef = useRef<ChessGame | null>(null);
+  const scratchRef = useRef<ChessGame | null>(null); // used only by the bot
   const [status, setStatus] = useState<EngineStatus>("loading");
   const [error, setError] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null);
+  const [sanHistory, setSanHistory] = useState<string[]>([]);
 
   const [selected, setSelected] = useState(-1);
   const [legalTargets, setLegalTargets] = useState<number[]>([]);
   const [flipped, setFlipped] = useState(false);
   const [promotion, setPromotion] = useState<PendingPromotion | null>(null);
+  const [botThinking, setBotThinking] = useState(false);
+  const [manualResult, setManualResult] = useState<ManualResult | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +130,7 @@ export function useChessGame(): UseChessGame {
       .then((Module) => {
         if (cancelled) return;
         gameRef.current = new Module.ChessGame();
+        scratchRef.current = new Module.ChessGame();
         setSnapshot(snapshotOf(gameRef.current));
         setStatus("ready");
       })
@@ -116,32 +149,35 @@ export function useChessGame(): UseChessGame {
     setLegalTargets([]);
   }, []);
 
-  const play = useCallback(
-    (from: number, to: number, promo: string) => {
-      const game = gameRef.current;
-      if (!game) return;
-      game.doMove(from, to, promo);
-      setSelected(-1);
-      setLegalTargets([]);
-      setPromotion(null);
-      setSnapshot(snapshotOf(game));
-    },
-    []
-  );
+  const play = useCallback((from: number, to: number, promo: string) => {
+    const game = gameRef.current;
+    if (!game) return;
+    const plyBefore = game.ply();
+    const res = game.doMove(from, to, promo);
+    if (res && res.ok) {
+      // If we had stepped back into history, this move starts a new branch:
+      // drop everything after the current point, then append the new SAN.
+      setSanHistory((prev) => [...prev.slice(0, plyBefore), res.san]);
+    }
+    setSelected(-1);
+    setLegalTargets([]);
+    setPromotion(null);
+    setSnapshot(snapshotOf(game));
+  }, []);
 
   const onSquareClick = useCallback(
     (square: number) => {
       const game = gameRef.current;
-      if (!game || game.isGameOver()) return;
+      if (!game || game.isGameOver() || manualResult) return;
+      // Don't let a human move for the bot.
+      if (mode === "bot" && game.turn() === botColor) return;
 
       const board = game.boardString();
       const piece = board[square];
       const whiteToMove = game.turn() === 0;
       const isOwnPiece =
-        piece !== "." &&
-        whiteToMove === (piece === piece.toUpperCase());
+        piece !== "." && whiteToMove === (piece === piece.toUpperCase());
 
-      // Nothing selected yet: pick up an own piece.
       if (selected === -1) {
         if (isOwnPiece) {
           setSelected(square);
@@ -150,13 +186,11 @@ export function useChessGame(): UseChessGame {
         return;
       }
 
-      // Clicking the selected piece again deselects.
       if (square === selected) {
         clearSelection();
         return;
       }
 
-      // A legal destination: play it (asking for a promotion piece if needed).
       if (legalTargets.includes(square)) {
         if (game.isPromotion(selected, square)) {
           setPromotion({ from: selected, to: square, color: game.turn() });
@@ -166,7 +200,6 @@ export function useChessGame(): UseChessGame {
         return;
       }
 
-      // Otherwise re-select another own piece, or clear.
       if (isOwnPiece) {
         setSelected(square);
         setLegalTargets(Array.from(game.movesFrom(square)));
@@ -174,7 +207,7 @@ export function useChessGame(): UseChessGame {
         clearSelection();
       }
     },
-    [selected, legalTargets, clearSelection, play]
+    [selected, legalTargets, clearSelection, play, manualResult, mode, botColor]
   );
 
   const choosePromotion = useCallback(
@@ -195,6 +228,8 @@ export function useChessGame(): UseChessGame {
     game.reset();
     clearSelection();
     setPromotion(null);
+    setManualResult(null);
+    setSanHistory([]);
     setSnapshot(snapshotOf(game));
   }, [clearSelection]);
 
@@ -213,22 +248,120 @@ export function useChessGame(): UseChessGame {
     setSnapshot(snapshotOf(game));
   }, [clearSelection]);
 
+  const toStart = useCallback(() => {
+    const game = gameRef.current;
+    if (!game) return;
+    while (game.canUndo()) game.undo();
+    clearSelection();
+    setPromotion(null);
+    setSnapshot(snapshotOf(game));
+  }, [clearSelection]);
+
+  const toEnd = useCallback(() => {
+    const game = gameRef.current;
+    if (!game) return;
+    while (game.canRedo()) game.redo();
+    clearSelection();
+    setSnapshot(snapshotOf(game));
+  }, [clearSelection]);
+
+  const goToPly = useCallback(
+    (ply: number) => {
+      const game = gameRef.current;
+      if (!game) return;
+      while (game.ply() > ply && game.canUndo()) game.undo();
+      while (game.ply() < ply && game.canRedo()) game.redo();
+      clearSelection();
+      setPromotion(null);
+      setSnapshot(snapshotOf(game));
+    },
+    [clearSelection]
+  );
+
   const flip = useCallback(() => setFlipped((f) => !f), []);
+
+  const resign = useCallback(() => {
+    const game = gameRef.current;
+    if (!game || manualResult || game.isGameOver()) return;
+    const whiteToMove = game.turn() === 0;
+    const loser = whiteToMove ? "White" : "Black";
+    setManualResult({
+      result: whiteToMove ? 2 : 1,
+      label: `${loser} resigned`,
+    });
+  }, [manualResult]);
+
+  const agreeDraw = useCallback(() => {
+    const game = gameRef.current;
+    if (!game || manualResult || game.isGameOver()) return;
+    setManualResult({ result: 3, label: "Draw agreed" });
+  }, [manualResult]);
+
+  // --- bot opponent -------------------------------------------------------
+  // When it's the bot's turn and we're at the live tip (not reviewing), pick a
+  // move on the scratch instance and play it after a short, human-ish pause.
+  useEffect(() => {
+    if (mode !== "bot" || status !== "ready") return;
+    const s = snapshot;
+    if (!s || s.gameOver || manualResult) return;
+    if (s.canRedo) return; // user is reviewing earlier moves
+    if (s.turn !== botColor) return;
+
+    setBotThinking(true);
+    const timer = window.setTimeout(() => {
+      const game = gameRef.current;
+      const scratch = scratchRef.current;
+      if (
+        !game ||
+        !scratch ||
+        game.isGameOver() ||
+        game.canRedo() ||
+        game.turn() !== botColor
+      ) {
+        setBotThinking(false);
+        return;
+      }
+      const uci = chooseBotMove(scratch, game.fen(), botColor);
+      if (uci) {
+        play(
+          squareFromName(uci.slice(0, 2)),
+          squareFromName(uci.slice(2, 4)),
+          uci.length >= 5 ? uci[4] : ""
+        );
+      }
+      setBotThinking(false);
+    }, 450);
+
+    return () => {
+      window.clearTimeout(timer);
+      setBotThinking(false);
+    };
+  }, [mode, botColor, status, snapshot, manualResult, play]);
 
   return {
     status,
     error,
     snapshot,
+    sanHistory,
     selected,
     legalTargets,
     flipped,
     promotion,
+    mode,
+    botColor,
+    botThinking,
+    manualResult,
     onSquareClick,
     choosePromotion,
     cancelPromotion,
     newGame,
     undo,
     redo,
+    toStart,
+    toEnd,
+    goToPly,
     flip,
+    resign,
+    agreeDraw,
   };
 }

@@ -5,7 +5,10 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+  /* Board squares — overridden by the Settings board theme (default: Walnut). */
+  --board-light: #e8cfa6;
+  --board-dark: #a17a4c;
 }
 
 html,
@@ -14,22 +17,25 @@ body {
 }
 
 body {
-  @apply bg-slate-950 text-slate-100 antialiased;
-  background-image:
-    radial-gradient(60rem 60rem at 50% -20%, rgba(16, 185, 129, 0.12), transparent 60%),
-    radial-gradient(50rem 50rem at 100% 0%, rgba(56, 189, 248, 0.08), transparent 55%);
-  background-attachment: fixed;
+  @apply bg-paper text-ink antialiased;
 }
 
-/* Thin, themed scrollbars for the move list. */
+/* Thin, themed scrollbars for scrolling panels (move list, chat, etc.). */
 .scroll-slim {
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  scrollbar-color: rgba(110, 103, 91, 0.35) transparent;
 }
 .scroll-slim::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 .scroll-slim::-webkit-scrollbar-thumb {
-  background-color: rgba(148, 163, 184, 0.35);
+  background-color: rgba(110, 103, 91, 0.3);
   border-radius: 9999px;
+}
+.scroll-slim.on-dark {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+.scroll-slim.on-dark::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.18);
 }

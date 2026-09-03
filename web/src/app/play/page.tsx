@@ -1,264 +1,190 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
-import { Board } from "@/components/Board";
-import { PromotionModal } from "@/components/PromotionModal";
-import { useChessGame, type GameSnapshot } from "@/lib/useChessGame";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { KnightMark } from "@/components/Logo";
 
-const RESULT = ["", "White wins", "Black wins", "Draw"];
-const DRAW = [
-  "",
-  "stalemate",
-  "the 50-move rule",
-  "threefold repetition",
-  "insufficient material",
+type Mode = "quick" | "friend" | "bot";
+type Minutes = 3 | 10 | 30;
+
+const MODES: {
+  id: Mode;
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+}[] = [
+  {
+    id: "quick",
+    title: "Quick match",
+    subtitle: "Find a player near your rating",
+    icon: <KnightMark className="h-6 w-6" />,
+  },
+  {
+    id: "friend",
+    title: "Play a friend",
+    subtitle: "Invite with a private link",
+    icon: <PersonIcon className="h-6 w-6" />,
+  },
+  {
+    id: "bot",
+    title: "Play the bot",
+    subtitle: "Choose strength and style",
+    icon: <RookIcon className="h-6 w-6" />,
+  },
 ];
 
-interface MoveRow {
-  no: number;
-  white?: string;
-  black?: string;
-}
+const TIMES: { minutes: Minutes; label: string }[] = [
+  { minutes: 3, label: "Blitz" },
+  { minutes: 10, label: "Rapid" },
+  { minutes: 30, label: "Classical" },
+];
 
-// Turn the engine's SAN movetext ("1. e4 e5 2. Nf3 ...") into table rows.
-function parsePgn(pgn: string): MoveRow[] {
-  const tokens = pgn.trim().split(/\s+/).filter(Boolean);
-  const rows: MoveRow[] = [];
-  let current: MoveRow | null = null;
-  for (const token of tokens) {
-    const numbered = token.match(/^(\d+)\.(\.\.)?$/);
-    if (numbered) {
-      current = { no: parseInt(numbered[1], 10) };
-      if (numbered[2]) current.white = "…"; // black-to-move start position
-      rows.push(current);
-      continue;
-    }
-    if (!current) {
-      current = { no: rows.length + 1 };
-      rows.push(current);
-    }
-    if (current.white === undefined) current.white = token;
-    else if (current.black === undefined) current.black = token;
+export default function NewGamePage() {
+  const router = useRouter();
+  const [mode, setMode] = useState<Mode>("quick");
+  const [minutes, setMinutes] = useState<Minutes>(3);
+
+  function start() {
+    // No matchmaking backend: "bot" plays the local engine opponent, everything
+    // else is a pass-and-play game on this device.
+    const engineMode = mode === "bot" ? "bot" : "local";
+    const params = new URLSearchParams({
+      mode: engineMode,
+      min: String(minutes),
+    });
+    router.push(`/game?${params.toString()}`);
   }
-  return rows;
-}
 
-function statusText(s: GameSnapshot): string {
-  if (s.gameOver) {
-    if (s.result === 3) return `Draw by ${DRAW[s.drawReason] ?? "agreement"}`;
-    const base = RESULT[s.result] || "Game over";
-    return s.isCheckmate ? `${base} by checkmate` : base;
-  }
-  const side = s.turn === 0 ? "White" : "Black";
-  return s.inCheck ? `${side} to move — check!` : `${side} to move`;
-}
-
-export default function PlayPage() {
-  const game = useChessGame();
+  const subline =
+    mode === "bot"
+      ? "You play White; the bot replies as Black."
+      : "Pass-and-play on this device — take turns for both sides.";
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        {/* Board column */}
-        <div className="mx-auto w-full max-w-[640px]">
-          {game.status === "ready" && game.snapshot ? (
-            <Board
-              snapshot={game.snapshot}
-              selected={game.selected}
-              legalTargets={game.legalTargets}
-              flipped={game.flipped}
-              onSquareClick={game.onSquareClick}
-            />
-          ) : (
-            <BoardPlaceholder
-              status={game.status}
-              error={game.error}
-            />
-          )}
-        </div>
+    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+      <h1 className="text-4xl font-black tracking-tight text-ink sm:text-5xl">
+        Start a new game
+      </h1>
+      <p className="mt-3 text-base text-muted">
+        Choose how you want to play. You can change advanced options later.
+      </p>
 
-        {/* Side panel */}
-        <SidePanel game={game} />
+      {/* Mode cards */}
+      <div className="mt-9 grid gap-4 sm:grid-cols-3">
+        {MODES.map((m) => {
+          const active = mode === m.id;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setMode(m.id)}
+              className={`relative rounded-2xl border bg-white p-5 text-left transition ${
+                active
+                  ? "border-gold shadow-card ring-1 ring-gold/40"
+                  : "border-line hover:border-ink/15 hover:shadow-card"
+              }`}
+            >
+              {active && (
+                <span className="absolute right-4 top-4 grid h-6 w-6 place-items-center rounded-full bg-gold text-white">
+                  <CheckIcon className="h-3.5 w-3.5" />
+                </span>
+              )}
+              <span
+                className={`inline-flex ${active ? "text-gold" : "text-muted"}`}
+              >
+                {m.icon}
+              </span>
+              <h3 className="mt-4 text-base font-bold text-ink">{m.title}</h3>
+              <p className="mt-1 text-sm text-muted">{m.subtitle}</p>
+            </button>
+          );
+        })}
       </div>
 
-      {game.promotion && (
-        <PromotionModal
-          promotion={game.promotion}
-          onChoose={game.choosePromotion}
-          onCancel={game.cancelPromotion}
-        />
-      )}
+      {/* Time control */}
+      <h2 className="mt-10 text-xs font-bold uppercase tracking-wider text-muted">
+        Time control
+      </h2>
+      <div className="mt-3 grid max-w-xl gap-3 sm:grid-cols-3">
+        {TIMES.map((t) => {
+          const active = minutes === t.minutes;
+          return (
+            <button
+              key={t.minutes}
+              type="button"
+              onClick={() => setMinutes(t.minutes)}
+              className={`rounded-2xl border px-5 py-4 text-left transition ${
+                active
+                  ? "border-ink bg-ink text-paper"
+                  : "border-line bg-white text-ink hover:border-ink/15"
+              }`}
+            >
+              <div className="text-lg font-bold">{t.minutes} min</div>
+              <div
+                className={`text-sm ${active ? "text-paper/60" : "text-muted"}`}
+              >
+                {t.label}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Start */}
+      <div className="mt-12 flex flex-col items-stretch gap-3 sm:items-end">
+        <button
+          type="button"
+          onClick={start}
+          className="rounded-full bg-ink px-9 py-4 text-base font-bold text-paper shadow-card transition hover:bg-ink-800"
+        >
+          {mode === "bot" ? "Play the bot" : "Find a game"}
+        </button>
+        <p className="text-sm text-muted sm:text-right">{subline}</p>
+      </div>
     </main>
   );
 }
 
-function SidePanel({ game }: { game: ReturnType<typeof useChessGame> }) {
-  const { snapshot, status } = game;
-  const ready = status === "ready" && snapshot !== null;
-
-  const rows = useMemo(
-    () => (snapshot ? parsePgn(snapshot.pgn) : []),
-    [snapshot]
-  );
-
-  const listRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
-  }, [snapshot?.ply]);
-
-  const gameOver = ready && snapshot!.gameOver;
-  const turnWhite = ready && snapshot!.turn === 0;
-
+function PersonIcon({ className = "" }: { className?: string }) {
   return (
-    <aside className="flex flex-col gap-4">
-      {/* Status card */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <div className="flex items-center gap-3">
-          <span
-            className={`h-3.5 w-3.5 shrink-0 rounded-full ring-2 ring-white/20 ${
-              !ready
-                ? "bg-slate-600"
-                : gameOver
-                  ? "bg-brand-400"
-                  : turnWhite
-                    ? "bg-white"
-                    : "bg-slate-900"
-            }`}
-          />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-white">
-              {ready
-                ? statusText(snapshot!)
-                : status === "error"
-                  ? "Engine unavailable"
-                  : "Loading engine…"}
-            </p>
-            <p className="text-xs text-slate-400">
-              {ready ? `Move ${Math.floor(snapshot!.ply / 2) + 1} · ${snapshot!.ply} ply` : "C++ · WebAssembly"}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className="grid grid-cols-2 gap-2">
-        <ControlButton onClick={game.newGame} disabled={!ready} primary>
-          New game
-        </ControlButton>
-        <ControlButton onClick={game.flip} disabled={!ready}>
-          Flip board
-        </ControlButton>
-        <ControlButton
-          onClick={game.undo}
-          disabled={!ready || !snapshot!.canUndo}
-        >
-          ↶ Undo
-        </ControlButton>
-        <ControlButton
-          onClick={game.redo}
-          disabled={!ready || !snapshot!.canRedo}
-        >
-          Redo ↷
-        </ControlButton>
-      </div>
-
-      {/* Move list */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03]">
-        <div className="border-b border-white/10 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Moves
-        </div>
-        <div
-          ref={listRef}
-          className="scroll-slim h-64 overflow-y-auto px-2 py-2 lg:h-[360px]"
-        >
-          {rows.length === 0 ? (
-            <p className="px-2 py-6 text-center text-sm text-slate-500">
-              No moves yet — make the first move.
-            </p>
-          ) : (
-            <ol className="text-sm">
-              {rows.map((row) => (
-                <li
-                  key={row.no}
-                  className="grid grid-cols-[2rem_1fr_1fr] items-center gap-1 rounded-md px-2 py-1 odd:bg-white/[0.02]"
-                >
-                  <span className="text-xs font-semibold text-slate-500">
-                    {row.no}.
-                  </span>
-                  <span className="font-medium text-slate-200">
-                    {row.white ?? ""}
-                  </span>
-                  <span className="font-medium text-slate-200">
-                    {row.black ?? ""}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-      </div>
-    </aside>
-  );
-}
-
-function ControlButton({
-  children,
-  onClick,
-  disabled,
-  primary = false,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  primary?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
-        primary
-          ? "bg-brand-500 text-slate-950 shadow-lg shadow-emerald-500/20 enabled:hover:bg-brand-400"
-          : "border border-white/10 bg-white/5 text-slate-200 enabled:hover:bg-white/10"
-      }`}
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
     >
-      {children}
-    </button>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M5 21c1.5-4 4-6 7-6s5.5 2 7 6" />
+    </svg>
   );
 }
 
-function BoardPlaceholder({
-  status,
-  error,
-}: {
-  status: string;
-  error: string | null;
-}) {
+function RookIcon({ className = "" }: { className?: string }) {
   return (
-    <div className="grid aspect-square w-full place-items-center rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center">
-      {status === "error" ? (
-        <div className="max-w-sm">
-          <p className="text-base font-semibold text-red-400">
-            Couldn&apos;t load the chess engine
-          </p>
-          <p className="mt-2 text-sm text-slate-400">
-            The WebAssembly module isn&apos;t available. Build it from the repo
-            root and restart the dev server:
-          </p>
-          <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-900 p-3 text-left text-xs text-slate-300">
-            emcmake cmake -S . -B build-web -G Ninja{"\n"}cmake --build build-web
-          </pre>
-          {error && (
-            <p className="mt-3 text-xs text-slate-500">Details: {error}</p>
-          )}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center gap-3 text-slate-400">
-          <span className="h-8 w-8 animate-spin rounded-full border-2 border-slate-600 border-t-brand-400" />
-          <p className="text-sm font-medium">Loading engine…</p>
-        </div>
-      )}
-    </div>
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M6 4h2v2h2V4h4v2h2V4h2v5l-2 2v5l1 4H7l1-4v-5L6 9z" />
+      <rect x="5" y="20" width="14" height="2" rx="1" />
+    </svg>
+  );
+}
+
+function CheckIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5 12l5 5L20 6" />
+    </svg>
   );
 }
