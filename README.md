@@ -1,4 +1,4 @@
-# Welcome to PyChess! To use the app, visit [pychess.app](pychess.app)
+# Welcome to PyChess! To use the app, visit [pychess.app](https://www.pychess.app)
 <img width="3840" height="1787" alt="image" src="https://github.com/user-attachments/assets/8b81f9f1-f0a6-491b-abd6-54d5255353af" />
 
 ## Background 
