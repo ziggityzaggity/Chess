@@ -21,13 +21,22 @@ const files = ["chessengine.js", "chessengine.wasm"];
 
 const missing = files.filter((f) => !existsSync(resolve(srcDir, f)));
 if (missing.length) {
-  console.warn(
-    "\n[copy-engine] WASM engine not found in build-web/bindings/web.\n" +
-      "             Build it from the repo root with Emscripten on PATH:\n\n" +
-      "               emcmake cmake -S . -B build-web -G Ninja\n" +
-      "               cmake --build build-web\n\n" +
-      "             The Play page will show a load error until this is done.\n"
-  );
+  // No local Emscripten build — fall back to the committed engine in
+  // public/engine (kept in git so hosted builds like Vercel can serve it).
+  const committed = files.every((f) => existsSync(resolve(destDir, f)));
+  if (committed) {
+    console.log(
+      "[copy-engine] no local build-web output; using the committed engine in public/engine"
+    );
+  } else {
+    console.warn(
+      "\n[copy-engine] WASM engine not found in build-web/bindings/web.\n" +
+        "             Build it from the repo root with Emscripten on PATH:\n\n" +
+        "               emcmake cmake -S . -B build-web -G Ninja\n" +
+        "               cmake --build build-web\n\n" +
+        "             The Play page will show a load error until this is done.\n"
+    );
+  }
   process.exit(0);
 }
 

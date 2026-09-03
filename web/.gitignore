@@ -25,5 +25,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# engine artifacts are copied in from ../build-web by scripts/copy-engine.mjs
-/public/engine/
+# The WASM engine in public/engine is COMMITTED (so Vercel can deploy it
+# without an Emscripten toolchain); scripts/copy-engine.mjs refreshes it from
+# ../build-web when a local build exists. Un-ignore it from the repo-root
+# *.wasm rule too.
+!/public/engine/
+!/public/engine/chessengine.wasm
