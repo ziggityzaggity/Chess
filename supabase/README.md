@@ -21,28 +21,29 @@ All tables have RLS: profiles are readable by any signed-in player (for friend
 search) and writable only by their owner; games and friendships are only
 visible to / editable by the users involved.
 
-## Provisioning the hosted project
+## Hosted project
 
-1. Create a project named **PyChess** at <https://supabase.com/dashboard>.
-2. Apply the migration: SQL Editor → paste
-   `migrations/20260903000000_init_pychess.sql` → run. (Or `supabase link
-   --project-ref <ref>` then `supabase db push` after `supabase login`.)
-3. **Email one-time codes**: Authentication → Emails → *Magic Link* template —
-   make the body show `{{ .Token }}` (the 6-digit code) instead of the link,
-   e.g. `<p>Your PyChess sign-in code is: <strong>{{ .Token }}</strong></p>`.
-   The built-in mailer is fine for testing (a few emails/hour); configure
-   custom SMTP for real traffic.
-4. **Google sign-in**: Google Cloud Console → create an OAuth client
+The hosted project is **PyChess** (ref `dowvjokcncfombjjozff`, org PyChess,
+AWS us-east-1, free tier — it auto-pauses after a week of inactivity; resume it
+from the dashboard). Already done (2026-09-03): migration applied, site URL set
+to <https://pychess-py-chess.vercel.app>, `/auth/callback` redirect URLs
+allow-listed (production + localhost), and the URL + publishable key wired into
+Vercel env vars and `web/.env.local` as
+`NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+
+Remaining manual steps:
+
+1. **6-digit codes in email**: with the built-in mailer the sign-in email
+   contains only a confirmation *link* (which works — the app signs you in when
+   you open it). To also show the `{{ .Token }}` code, configure custom SMTP
+   (Authentication → Emails → SMTP Settings; e.g. Resend), then edit the
+   *Magic link or OTP* and *Confirm sign up* templates to include
+   `<p>Your PyChess sign-in code is: <strong>{{ .Token }}</strong></p>`.
+   The built-in mailer is also rate-limited to a few emails per hour.
+2. **Google sign-in**: Google Cloud Console → create an OAuth client
    (Web application) with redirect URI
-   `https://<project-ref>.supabase.co/auth/v1/callback`, then paste the client
-   ID + secret in Authentication → Sign In / Providers → Google.
-5. **Redirect URLs**: Authentication → URL Configuration → set the site URL to
-   the production domain and add
-   `https://<your-domain>/auth/callback` and
-   `http://localhost:3000/auth/callback` to the allow-list.
-6. Copy the Project URL and publishable key (Project Settings → API) into
-   `web/.env.local` and the Vercel project's environment variables as
-   `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+   `https://dowvjokcncfombjjozff.supabase.co/auth/v1/callback`, then paste the
+   client ID + secret in Authentication → Sign In / Providers → Google.
 
 ## Local development
 

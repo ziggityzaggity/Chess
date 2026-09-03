@@ -25,7 +25,8 @@ export default function RegisterPage() {
             Create your account
           </h1>
           <p className="mt-3 text-base text-muted">
-            No password needed — we&apos;ll email you a one-time code.
+            No password needed — we&apos;ll email you a one-time sign-in link
+            or code.
           </p>
 
           <AuthForm

@@ -35,7 +35,7 @@ function LoginContent() {
             Welcome back
           </h1>
           <p className="mt-3 text-base text-muted">
-            Sign in with a one-time email code or your Google account.
+            Sign in with a one-time email link or code, or your Google account.
           </p>
 
           {oauthFailed && (

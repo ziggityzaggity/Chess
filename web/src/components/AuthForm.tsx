@@ -34,7 +34,10 @@ export function AuthForm({
       setError(res.error);
       return;
     }
-    setNotice(`We emailed a one-time code to ${email.trim()}.`);
+    setNotice(
+      `We emailed ${email.trim()}. Click the sign-in link in it on this ` +
+        `device — or enter the one-time code below if your email shows one.`
+    );
     setStep("code");
   }
 
@@ -111,7 +114,6 @@ export function AuthForm({
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
-              required
               autoFocus
               maxLength={10}
               placeholder="6-digit code"
