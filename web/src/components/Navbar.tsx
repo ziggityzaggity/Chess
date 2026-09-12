@@ -105,7 +105,7 @@ function ProfileMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account menu"
-        className="grid h-9 w-9 place-items-center rounded-full bg-gold text-sm font-bold text-white ring-2 ring-transparent transition hover:ring-gold/30"
+        className="grid h-9 w-9 place-items-center rounded-full bg-gold text-sm font-bold text-on-accent ring-2 ring-transparent transition hover:ring-gold/30"
       >
         {user.initials}
       </button>
@@ -113,7 +113,7 @@ function ProfileMenu() {
       {open && (
         <div
           role="menu"
-          className="animate-pop-in absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-line bg-white shadow-pop"
+          className="animate-pop-in absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-line bg-surface shadow-pop"
         >
           <div className="border-b border-line px-4 py-3">
             <p className="truncate text-sm font-semibold text-ink">{user.name}</p>

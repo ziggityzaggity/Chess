@@ -25,7 +25,7 @@ export default function HomePage() {
             </Link>
             <Link
               href="/assistant"
-              className="rounded-full border border-line bg-white px-7 py-3.5 text-base font-semibold text-ink transition hover:border-ink/20 hover:bg-paper-50"
+              className="rounded-full border border-line bg-surface px-7 py-3.5 text-base font-semibold text-ink transition hover:border-ink/20 hover:bg-paper-50"
             >
               Chess assistant
             </Link>
@@ -52,7 +52,7 @@ function HeroArt() {
         aria-hidden="true"
       >
         {/* King — filled ink silhouette */}
-        <g fill="#1d1b17">
+        <g fill="currentColor" className="text-ink">
           <rect x="72" y="150" width="56" height="12" rx="3" />
           <path d="M78 150c-4-14-8-24-8-33 0-12 9-19 20-19h20c11 0 20 7 20 19 0 9-4 19-8 33z" />
           <path d="M96 78h8v-8h-8zM88 68h24v9H88z" />
@@ -63,7 +63,7 @@ function HeroArt() {
         <g
           transform="translate(126 92) scale(0.62)"
           fill="none"
-          stroke="#1d1b17"
+          stroke="currentColor" className="text-ink"
           strokeWidth="7"
           strokeLinejoin="round"
         >

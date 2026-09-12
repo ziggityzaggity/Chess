@@ -2,13 +2,21 @@
 
 import { useState } from "react";
 import { Toggle } from "@/components/Toggle";
-import { BOARD_THEMES, useSettings, type BoardThemeId } from "@/lib/settings";
+import { KnightMark } from "@/components/Logo";
+import { StaticBoard, START_BOARD } from "@/components/StaticBoard";
+import { APP_THEMES, BOARD_THEMES, useSettings } from "@/lib/settings";
 
-const TABS = ["Appearance", "Board", "Game", "Notifications", "Privacy"] as const;
+const TABS = [
+  "Appearance",
+  "Board",
+  "Game",
+  "Notifications",
+  "Privacy",
+] as const;
 type Tab = (typeof TABS)[number];
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<Tab>("Board");
+  const [tab, setTab] = useState<Tab>("Appearance");
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
@@ -18,74 +26,177 @@ export default function SettingsPage() {
       <p className="mt-3 text-base text-muted">
         Keep the board comfortable and the game your way.
       </p>
-
       <div className="mt-9 grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-        {/* Tab rail */}
-        <nav className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
+        <nav
+          aria-label="Settings sections"
+          className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible"
+        >
           {TABS.map((t) => (
             <button
               key={t}
               type="button"
+              aria-pressed={tab === t}
+              aria-controls="settings-panel"
               onClick={() => setTab(t)}
-              className={`whitespace-nowrap rounded-2xl px-4 py-2.5 text-left text-sm font-semibold transition ${
+              className={`whitespace-nowrap rounded-2xl px-4 py-2.5 text-left text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold ${
                 tab === t
-                  ? "bg-white text-ink shadow-sm"
-                  : "text-muted hover:bg-white/60 hover:text-ink"
+                  ? "bg-surface text-ink shadow-sm"
+                  : "text-muted hover:bg-surface/60 hover:text-ink"
               }`}
             >
               {t}
             </button>
           ))}
         </nav>
-
-        {/* Panel */}
-        <div className="rounded-3xl border border-line bg-white p-6 shadow-card sm:p-8">
-          {tab === "Board" ? <BoardPanel /> : <PlaceholderPanel tab={tab} />}
-        </div>
+        <section
+          id="settings-panel"
+          aria-labelledby="settings-heading"
+          className="min-w-0 rounded-3xl border border-line bg-surface p-6 shadow-card sm:p-8"
+        >
+          {tab === "Appearance" ? (
+            <AppearancePanel />
+          ) : tab === "Board" ? (
+            <BoardPanel />
+          ) : (
+            <PlaceholderPanel tab={tab} />
+          )}
+        </section>
       </div>
     </main>
   );
 }
 
-function BoardPanel() {
+function AppearancePanel() {
   const { settings, update } = useSettings();
-  const [saved, setSaved] = useState(false);
-
-  function save() {
-    // Settings already persist on every change; this just confirms it.
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 1800);
-  }
-
   return (
     <div>
-      <h2 className="text-2xl font-bold text-ink">Board</h2>
-
-      <h3 className="mt-6 text-xs font-bold uppercase tracking-wider text-muted">
-        Theme
-      </h3>
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        {Object.values(BOARD_THEMES).map((theme) => {
-          const active = settings.boardTheme === theme.id;
-          return (
-            <button
+      <h2 id="settings-heading" className="text-2xl font-bold text-ink">
+        Appearance
+      </h2>
+      <p className="mt-2 text-sm leading-relaxed text-muted">
+        Set the mood for your next move. Choose a colour palette for the app.
+      </p>
+      <fieldset className="mt-6">
+        <legend className="text-xs font-bold uppercase tracking-wider text-muted">
+          App theme
+        </legend>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          {Object.values(APP_THEMES).map((theme) => (
+            <ThemeChoice
               key={theme.id}
-              type="button"
-              onClick={() => update({ boardTheme: theme.id as BoardThemeId })}
-              className={`flex items-center gap-3 rounded-2xl border p-3 transition ${
-                active
-                  ? "border-gold ring-1 ring-gold/40"
-                  : "border-line hover:border-ink/15"
-              }`}
+              name="app-theme"
+              value={theme.id}
+              label={theme.name}
+              description={theme.description}
+              checked={settings.appTheme === theme.id}
+              onChange={() => update({ appTheme: theme.id })}
             >
-              <ThemeSwatch light={theme.light} dark={theme.dark} />
-              <span className="text-sm font-semibold text-ink">{theme.name}</span>
-            </button>
-          );
-        })}
-      </div>
+              <span
+                data-app-theme={theme.id}
+                aria-hidden="true"
+                className="block overflow-hidden rounded-xl border border-line bg-paper p-4"
+              >
+                <span className="flex items-center justify-between border-b border-line pb-3">
+                  <KnightMark className="h-6 w-6 text-gold" />
+                  <span className="flex gap-1.5">
+                    <span className="h-1.5 w-7 rounded bg-muted/40" />
+                    <span className="h-1.5 w-4 rounded bg-muted/25" />
+                  </span>
+                </span>
+                <span className="mt-3 flex items-center gap-3 rounded-lg bg-surface p-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gold/15">
+                    <KnightMark className="h-6 w-6 text-gold" />
+                  </span>
+                  <span className="flex-1">
+                    <span className="block h-2 w-3/4 rounded bg-ink" />
+                    <span className="mt-2 block h-1.5 w-1/2 rounded bg-muted/40" />
+                  </span>
+                </span>
+                <span className="mt-3 flex items-center justify-between">
+                  <span className="flex gap-1.5">
+                    {["bg-ink", "bg-gold", "bg-positive"].map((color) => (
+                      <span
+                        key={color}
+                        className={`h-3 w-3 rounded-full ${color}`}
+                      />
+                    ))}
+                  </span>
+                  <span className="h-5 w-16 rounded-full bg-ink" />
+                </span>
+              </span>
+            </ThemeChoice>
+          ))}
+        </div>
+      </fieldset>
+      <SaveNote
+        message={`${APP_THEMES[settings.appTheme].name} appearance selected.`}
+      />
+    </div>
+  );
+}
 
-      <div className="mt-8 divide-y divide-line">
+function BoardPanel() {
+  const { settings, update } = useSettings();
+  return (
+    <div>
+      <h2 id="settings-heading" className="text-2xl font-bold text-ink">
+        Board
+      </h2>
+      <p className="mt-2 text-sm leading-relaxed text-muted">
+        Find your favourite squares. Board colours are independent of the app
+        theme.
+      </p>
+      <fieldset className="mt-6">
+        <legend className="text-xs font-bold uppercase tracking-wider text-muted">
+          Board theme
+        </legend>
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {Object.values(BOARD_THEMES).map((theme) => (
+            <ThemeChoice
+              key={theme.id}
+              name="board-theme"
+              value={theme.id}
+              label={theme.name}
+              checked={settings.boardTheme === theme.id}
+              onChange={() => update({ boardTheme: theme.id })}
+            >
+              <span
+                aria-hidden="true"
+                className="grid aspect-[2/1] grid-cols-4 grid-rows-2 overflow-hidden rounded-lg ring-1 ring-black/5"
+              >
+                {Array.from({ length: 8 }, (_, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      backgroundColor:
+                        (Math.floor(i / 4) + (i % 4)) % 2 === 0
+                          ? theme.light
+                          : theme.dark,
+                    }}
+                  />
+                ))}
+              </span>
+            </ThemeChoice>
+          ))}
+        </div>
+      </fieldset>
+      <div className="mt-6 flex flex-col items-center gap-5 rounded-2xl border border-line bg-paper-50 p-5 sm:flex-row">
+        <div
+          className="w-40 shrink-0"
+          role="img"
+          aria-label={`${BOARD_THEMES[settings.boardTheme].name} board preview with chess pieces`}
+        >
+          <StaticBoard board={START_BOARD} />
+        </div>
+        <div>
+          <h3 className="text-sm font-bold text-ink">A look at your board</h3>
+          <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted">
+            Your selected colours appear on every board, from the first move to
+            checkmate.
+          </p>
+        </div>
+      </div>
+      <div className="mt-6 divide-y divide-line">
         <ToggleRow
           label="Show coordinates"
           checked={settings.showCoordinates}
@@ -102,31 +213,68 @@ function BoardPanel() {
           onChange={(v) => update({ playSounds: v })}
         />
       </div>
-
-      <div className="mt-8 flex items-center justify-end gap-3">
-        {saved && (
-          <span className="text-sm font-semibold text-positive">Saved ✓</span>
-        )}
-        <button
-          type="button"
-          onClick={save}
-          className="rounded-full bg-ink px-7 py-3 text-sm font-bold text-paper shadow-card transition hover:bg-ink-800"
-        >
-          Save changes
-        </button>
-      </div>
+      <SaveNote
+        message={`${BOARD_THEMES[settings.boardTheme].name} board selected.`}
+      />
     </div>
   );
 }
 
-function ThemeSwatch({ light, dark }: { light: string; dark: string }) {
+function ThemeChoice({
+  name,
+  value,
+  label,
+  description,
+  checked,
+  onChange,
+  children,
+}: {
+  name: string;
+  value: string;
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <span className="grid h-10 w-10 shrink-0 grid-cols-2 grid-rows-2 overflow-hidden rounded-lg ring-1 ring-black/5">
-      <span style={{ background: dark }} />
-      <span style={{ background: light }} />
-      <span style={{ background: light }} />
-      <span style={{ background: dark }} />
-    </span>
+    <label className="relative min-w-0 cursor-pointer">
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        aria-label={label}
+        checked={checked}
+        onChange={onChange}
+        className="peer sr-only"
+      />
+      <span className="block h-full rounded-2xl border border-line p-3 transition hover:border-gold peer-checked:border-gold peer-checked:ring-1 peer-checked:ring-gold peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-gold">
+        {children}
+        <span className="mt-3 flex items-center justify-between gap-2">
+          <span className="text-sm font-semibold text-ink">{label}</span>
+          <span
+            aria-hidden="true"
+            className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border text-xs ${checked ? "border-gold bg-gold text-on-accent" : "border-line"}`}
+          >
+            {checked ? "✓" : ""}
+          </span>
+        </span>
+        {description && (
+          <span className="mt-1 block text-xs leading-relaxed text-muted">
+            {description}
+          </span>
+        )}
+      </span>
+    </label>
+  );
+}
+
+function SaveNote({ message }: { message: string }) {
+  return (
+    <p role="status" className="mt-6 text-xs leading-relaxed text-muted">
+      <span className="font-semibold text-ink">{message}</span> Changes apply
+      immediately and save in this browser.
+    </p>
   );
 }
 
@@ -140,7 +288,7 @@ function ToggleRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between py-4">
+    <div className="flex items-center justify-between gap-4 py-4">
       <span className="text-sm font-medium text-ink">{label}</span>
       <Toggle checked={checked} onChange={onChange} label={label} />
     </div>
@@ -150,10 +298,12 @@ function ToggleRow({
 function PlaceholderPanel({ tab }: { tab: Tab }) {
   return (
     <div>
-      <h2 className="text-2xl font-bold text-ink">{tab}</h2>
+      <h2 id="settings-heading" className="text-2xl font-bold text-ink">
+        {tab}
+      </h2>
       <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted">
-        {tab} preferences are part of the design and will land here. For now, the
-        Board tab is fully wired — pick a theme and it updates your board live.
+        {tab} preferences are coming soon. You can already customise the app and
+        board in Appearance and Board.
       </p>
       <div className="mt-6 rounded-2xl border border-dashed border-line bg-paper-50 p-6 text-sm text-muted">
         Nothing to configure yet.

@@ -4,11 +4,124 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* RGB channels keep opacity utilities working for every palette.
+   Scoped attributes also render accurate theme previews in Settings. */
+:root,
+[data-app-theme="classic"] {
   color-scheme: light;
-  /* Board squares — overridden by the Settings board theme (default: Walnut). */
-  --board-light: #e8cfa6;
-  --board-dark: #a17a4c;
+  --paper: 243 238 227;
+  --paper-50: 250 247 240;
+  --paper-200: 235 227 211;
+  --paper-300: 224 213 192;
+  --surface: 255 255 255;
+  --ink: 29 27 23;
+  --ink-800: 38 35 29;
+  --ink-700: 51 47 40;
+  --ink-600: 74 70 60;
+  --muted: 110 103 91;
+  --muted-light: 139 132 119;
+  --gold: 176 137 79;
+  --gold-400: 198 167 110;
+  --gold-600: 147 112 60;
+  --positive: 95 125 78;
+  --positive-600: 79 106 65;
+  --line: 228 219 201;
+  --line-soft: 238 231 217;
+  --night: 27 25 22;
+  --night-800: 35 32 25;
+  --night-700: 44 40 34;
+  --night-600: 58 53 44;
+  --night-foreground: 243 238 227;
+  --on-accent: 255 255 255;
+}
+
+[data-app-theme="ocean"] {
+  color-scheme: light;
+  --paper: 237 243 247;
+  --paper-50: 246 249 252;
+  --paper-200: 221 232 240;
+  --paper-300: 202 221 233;
+  --surface: 255 255 255;
+  --ink: 23 46 64;
+  --ink-800: 36 67 87;
+  --ink-700: 53 83 104;
+  --ink-600: 72 101 120;
+  --muted: 84 107 123;
+  --muted-light: 99 124 142;
+  --gold: 36 107 150;
+  --gold-400: 76 145 183;
+  --gold-600: 27 89 127;
+  --positive: 54 119 96;
+  --positive-600: 40 99 78;
+  --line: 209 223 232;
+  --line-soft: 228 237 243;
+  --night: 17 31 45;
+  --night-800: 25 44 61;
+  --night-700: 37 60 80;
+  --night-600: 52 78 98;
+  --night-foreground: 237 243 247;
+  --on-accent: 255 255 255;
+}
+
+[data-app-theme="sage"] {
+  color-scheme: light;
+  --paper: 238 241 233;
+  --paper-50: 247 248 242;
+  --paper-200: 225 231 216;
+  --paper-300: 210 221 199;
+  --surface: 252 253 249;
+  --ink: 37 52 40;
+  --ink-800: 53 71 53;
+  --ink-700: 70 89 69;
+  --ink-600: 88 107 85;
+  --muted: 92 109 88;
+  --muted-light: 113 129 107;
+  --gold: 72 115 84;
+  --gold-400: 114 147 106;
+  --gold-600: 54 94 66;
+  --positive: 72 115 84;
+  --positive-600: 54 94 66;
+  --line: 214 222 205;
+  --line-soft: 230 235 223;
+  --night: 25 37 30;
+  --night-800: 35 51 42;
+  --night-700: 48 68 55;
+  --night-600: 64 86 70;
+  --night-foreground: 238 241 233;
+  --on-accent: 255 255 255;
+}
+
+[data-app-theme="midnight"] {
+  color-scheme: dark;
+  --paper: 20 27 45;
+  --paper-50: 27 36 57;
+  --paper-200: 38 49 73;
+  --paper-300: 51 64 91;
+  --surface: 32 43 65;
+  --ink: 237 240 248;
+  --ink-800: 217 225 243;
+  --ink-700: 203 213 235;
+  --ink-600: 184 197 223;
+  --muted: 168 182 207;
+  --muted-light: 150 166 195;
+  --gold: 181 166 242;
+  --gold-400: 201 188 255;
+  --gold-600: 199 186 255;
+  --positive: 135 199 166;
+  --positive-600: 163 217 189;
+  --line: 60 74 101;
+  --line-soft: 44 57 82;
+  --night: 14 21 36;
+  --night-800: 22 32 52;
+  --night-700: 32 44 68;
+  --night-600: 44 58 85;
+  --night-foreground: 237 240 248;
+  --on-accent: 24 29 48;
+}
+
+:root {
+  --board-light: 232 207 166;
+  --board-dark: 161 122 76;
 }
 
 html,
@@ -23,14 +136,14 @@ body {
 /* Thin, themed scrollbars for scrolling panels (move list, chat, etc.). */
 .scroll-slim {
   scrollbar-width: thin;
-  scrollbar-color: rgba(110, 103, 91, 0.35) transparent;
+  scrollbar-color: rgb(var(--muted) / 0.35) transparent;
 }
 .scroll-slim::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 .scroll-slim::-webkit-scrollbar-thumb {
-  background-color: rgba(110, 103, 91, 0.3);
+  background-color: rgb(var(--muted) / 0.3);
   border-radius: 9999px;
 }
 .scroll-slim.on-dark {

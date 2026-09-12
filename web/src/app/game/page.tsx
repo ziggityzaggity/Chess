@@ -9,6 +9,8 @@ import { Logo } from "@/components/Logo";
 import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/lib/settings";
 import { toMoveRows } from "@/lib/pgn";
+import { parseTimeControl } from "@/lib/timeControl";
+import { BOTS, parseBotId } from "@/lib/bots";
 import { useChessGame, type GameSnapshot } from "@/lib/useChessGame";
 
 const DRAW = [
@@ -35,30 +37,35 @@ export default function GamePage() {
 function GameScreen() {
   const params = useSearchParams();
   const mode = params.get("mode") === "bot" ? "bot" : "local";
-  const minutes = clampMinutes(Number(params.get("min")));
+  const time = mode === "bot" ? "unlimited" : parseTimeControl(params.get("min"));
+  const playerColor = params.get("colour") === "black" ? 1 : 0;
+  const botId = parseBotId(params.get("bot"));
+  const timed = time !== "unlimited";
+  const initialSeconds = time === "unlimited" ? Infinity : time * 60;
 
   const { settings } = useSettings();
   const { user } = useAuth();
-  const game = useChessGame({ mode, botColor: 1 });
+  const game = useChessGame({ mode, botColor: 1 - playerColor, botId });
   const { snapshot } = game;
 
   // --- clocks (local, display-only) --------------------------------------
   const [resetToken, setResetToken] = useState(0);
-  const [whiteSec, setWhiteSec] = useState(minutes * 60);
-  const [blackSec, setBlackSec] = useState(minutes * 60);
+  const [whiteSec, setWhiteSec] = useState(initialSeconds);
+  const [blackSec, setBlackSec] = useState(initialSeconds);
   const [clockFlag, setClockFlag] = useState<Over | null>(null);
 
   useEffect(() => {
-    setWhiteSec(minutes * 60);
-    setBlackSec(minutes * 60);
+    setWhiteSec(initialSeconds);
+    setBlackSec(initialSeconds);
     setClockFlag(null);
-  }, [minutes, resetToken]);
+  }, [initialSeconds, resetToken]);
 
   const engineOver = snapshot?.gameOver ? engineOverLabel(snapshot) : null;
   const over: Over | null = engineOver ?? game.manualResult ?? clockFlag;
 
   const reviewing = !!snapshot?.canRedo;
   const clockRunning =
+    timed &&
     game.status === "ready" &&
     !!snapshot &&
     !over &&
@@ -76,11 +83,11 @@ function GameScreen() {
   }, [clockRunning, snapshot]);
 
   useEffect(() => {
-    if (clockFlag || over) return;
+    if (!timed || clockFlag || over) return;
     if (whiteSec <= 0) setClockFlag({ result: 2, label: "White out of time" });
     else if (blackSec <= 0)
       setClockFlag({ result: 1, label: "Black out of time" });
-  }, [whiteSec, blackSec, clockFlag, over]);
+  }, [whiteSec, blackSec, clockFlag, over, timed]);
 
   function newGame() {
     game.newGame();
@@ -96,16 +103,18 @@ function GameScreen() {
   // --- players -----------------------------------------------------------
   const you = {
     name: mode === "bot" ? user?.name ?? "You" : "White",
-    tag: mode === "bot" ? "You" : "Pass-and-play",
+    tag: mode === "bot" ? `You · ${playerColor === 0 ? "White" : "Black"}` : "Pass-and-play",
     initials: user?.initials,
   };
   const opponent = {
-    name: mode === "bot" ? "PyChess Bot" : "Black",
-    tag: mode === "bot" ? "Level 1 · greedy" : "Pass-and-play",
+    name: mode === "bot" ? BOTS[botId].name : "Black",
+    tag: mode === "bot" ? `${BOTS[botId].architecture} · ${playerColor === 0 ? "Black" : "White"}` : "Pass-and-play",
     initials: undefined as string | undefined,
   };
 
-  const whiteToMove = snapshot?.turn === 0;
+  const whitePlayer = mode === "bot" && playerColor === 1 ? opponent : you;
+  const blackPlayer = mode === "bot" && playerColor === 1 ? you : opponent;
+  const topColor = game.flipped ? 0 : 1;
 
   return (
     <GameShell onNewGame={newGame} onFlip={game.flip} status={game.status}>
@@ -116,10 +125,10 @@ function GameScreen() {
           style={{ maxWidth: "min(620px, calc(100dvh - 210px))" }}
         >
           <PlayerBar
-            player={opponent}
-            seconds={blackSec}
-            active={clockRunning && !whiteToMove}
-            icon={mode === "bot" ? <BotIcon /> : undefined}
+            player={topColor === 0 ? whitePlayer : blackPlayer}
+            seconds={topColor === 0 ? whiteSec : blackSec}
+            active={clockRunning && snapshot?.turn === topColor}
+            icon={mode === "bot" && topColor === game.botColor ? <BotIcon /> : undefined}
           />
 
           <div className="relative">
@@ -139,7 +148,7 @@ function GameScreen() {
 
             {over && (
               <div className="absolute inset-0 z-20 grid place-items-center rounded-2xl bg-night/70 backdrop-blur-sm">
-                <div className="animate-pop-in rounded-2xl bg-white px-8 py-6 text-center shadow-pop">
+                <div className="animate-pop-in rounded-2xl bg-surface px-8 py-6 text-center shadow-pop">
                   <p className="text-xs font-bold uppercase tracking-wider text-gold-600">
                     {over.result === 3 ? "Draw" : "Game over"}
                   </p>
@@ -157,9 +166,10 @@ function GameScreen() {
           </div>
 
           <PlayerBar
-            player={you}
-            seconds={whiteSec}
-            active={clockRunning && whiteToMove}
+            player={topColor === 0 ? blackPlayer : whitePlayer}
+            seconds={topColor === 0 ? blackSec : whiteSec}
+            active={clockRunning && snapshot?.turn !== topColor}
+            icon={mode === "bot" && topColor !== game.botColor ? <BotIcon /> : undefined}
           />
         </div>
 
@@ -191,7 +201,7 @@ function GameShell({
   status?: string;
 }) {
   return (
-    <div className="min-h-screen bg-night text-paper">
+    <div className="min-h-screen bg-night text-night-foreground">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
         <Logo tone="light" />
         <div className="flex items-center gap-2 sm:gap-3">
@@ -199,7 +209,7 @@ function GameShell({
             <button
               type="button"
               onClick={onFlip}
-              className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-paper/80 transition hover:bg-white/10"
+              className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-night-foreground/80 transition hover:bg-white/10"
             >
               Flip
             </button>
@@ -208,12 +218,12 @@ function GameShell({
             <button
               type="button"
               onClick={onNewGame}
-              className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-paper/80 transition hover:bg-white/10"
+              className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-night-foreground/80 transition hover:bg-white/10"
             >
               New game
             </button>
           )}
-          <span className="flex items-center gap-2 text-sm text-paper/70">
+          <span className="flex items-center gap-2 text-sm text-night-foreground/70">
             <span
               className={`h-2 w-2 rounded-full ${
                 status === "error"
@@ -250,17 +260,18 @@ function PlayerBar({
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-sm font-bold text-paper">
+        <span className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-sm font-bold text-night-foreground">
           {icon ?? player.initials ?? <PawnIcon />}
         </span>
         <div>
-          <p className="text-sm font-bold text-paper">{player.name}</p>
-          <p className="text-xs text-paper/50">{player.tag}</p>
+          <p className="text-sm font-bold text-night-foreground">{player.name}</p>
+          <p className="text-xs text-night-foreground/50">{player.tag}</p>
         </div>
       </div>
       <span
+        aria-label={seconds === Infinity ? "Unlimited time" : undefined}
         className={`rounded-xl px-4 py-2 font-mono text-lg font-bold tabular-nums transition-colors ${
-          active ? "bg-paper text-ink" : "bg-white/10 text-paper/70"
+          active ? "bg-paper text-ink" : "bg-white/10 text-night-foreground/70"
         }`}
       >
         {formatClock(seconds)}
@@ -291,7 +302,7 @@ function MovesPanel({
   const status = turnStatus(game, over);
 
   return (
-    <aside className="flex h-fit flex-col rounded-3xl bg-white text-ink shadow-pop lg:sticky lg:top-6">
+    <aside className="flex h-fit flex-col rounded-3xl bg-surface text-ink shadow-pop lg:sticky lg:top-6">
       {/* Header */}
       <div className="flex items-center justify-between px-6 pt-6">
         <h2 className="text-xl font-bold">Moves</h2>
@@ -449,16 +460,16 @@ function LoadingBoard({ error }: { error?: string | null }) {
           <p className="text-base font-semibold text-red-300">
             Couldn&apos;t load the chess engine
           </p>
-          <p className="mt-2 text-sm text-paper/60">
+          <p className="mt-2 text-sm text-night-foreground/60">
             The WebAssembly module isn&apos;t available. Build it from the repo
             root and restart the dev server:
           </p>
-          <pre className="mt-3 overflow-x-auto rounded-lg bg-black/40 p-3 text-left text-xs text-paper/70">
+          <pre className="mt-3 overflow-x-auto rounded-lg bg-black/40 p-3 text-left text-xs text-night-foreground/70">
             emcmake cmake -S . -B build-web -G Ninja{"\n"}cmake --build build-web
           </pre>
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-3 text-paper/60">
+        <div className="flex flex-col items-center gap-3 text-night-foreground/60">
           <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-gold" />
           <p className="text-sm font-medium">Loading engine…</p>
         </div>
@@ -468,11 +479,8 @@ function LoadingBoard({ error }: { error?: string | null }) {
 }
 
 // --- helpers --------------------------------------------------------------
-function clampMinutes(n: number): number {
-  return [3, 10, 30].includes(n) ? n : 3;
-}
-
 function formatClock(totalSeconds: number): string {
+  if (totalSeconds === Infinity) return "∞";
   const s = Math.max(0, totalSeconds);
   const m = Math.floor(s / 60);
   const sec = s % 60;

@@ -1,62 +1,55 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  content: [
-    "./src/app/**/*.{ts,tsx}",
-    "./src/components/**/*.{ts,tsx}",
-  ],
+  content: ["./src/app/**/*.{ts,tsx}", "./src/components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        // Warm paper background used across the light "app shell" pages.
+        // Semantic RGB tokens are selected by data-app-theme in globals.css.
         paper: {
-          DEFAULT: "#f3eee3",
-          50: "#faf7f0",
-          100: "#f3eee3",
-          200: "#ebe3d3",
-          300: "#e0d5c0",
+          DEFAULT: "rgb(var(--paper) / <alpha-value>)",
+          50: "rgb(var(--paper-50) / <alpha-value>)",
+          100: "rgb(var(--paper) / <alpha-value>)",
+          200: "rgb(var(--paper-200) / <alpha-value>)",
+          300: "rgb(var(--paper-300) / <alpha-value>)",
         },
-        // Near-black charcoal — body text and the primary (dark) buttons.
+        surface: "rgb(var(--surface) / <alpha-value>)",
         ink: {
-          DEFAULT: "#1d1b17",
-          900: "#1d1b17",
-          800: "#26231d",
-          700: "#332f28",
-          600: "#4a463c",
+          DEFAULT: "rgb(var(--ink) / <alpha-value>)",
+          900: "rgb(var(--ink) / <alpha-value>)",
+          800: "rgb(var(--ink-800) / <alpha-value>)",
+          700: "rgb(var(--ink-700) / <alpha-value>)",
+          600: "rgb(var(--ink-600) / <alpha-value>)",
         },
-        // Muted secondary text.
         muted: {
-          DEFAULT: "#6e675b",
-          light: "#8b8477",
+          DEFAULT: "rgb(var(--muted) / <alpha-value>)",
+          light: "rgb(var(--muted-light) / <alpha-value>)",
         },
-        // Walnut gold — the knight mark, links and selected states.
         gold: {
-          DEFAULT: "#b0894f",
-          400: "#c6a76e",
-          500: "#b0894f",
-          600: "#93703c",
+          DEFAULT: "rgb(var(--gold) / <alpha-value>)",
+          400: "rgb(var(--gold-400) / <alpha-value>)",
+          500: "rgb(var(--gold) / <alpha-value>)",
+          600: "rgb(var(--gold-600) / <alpha-value>)",
         },
-        // Muted forest green for "on" switches (matches the reference toggles).
         positive: {
-          DEFAULT: "#5f7d4e",
-          600: "#4f6a41",
+          DEFAULT: "rgb(var(--positive) / <alpha-value>)",
+          600: "rgb(var(--positive-600) / <alpha-value>)",
         },
-        // Hairline borders on light surfaces.
         line: {
-          DEFAULT: "#e4dbc9",
-          soft: "#eee7d9",
+          DEFAULT: "rgb(var(--line) / <alpha-value>)",
+          soft: "rgb(var(--line-soft) / <alpha-value>)",
         },
-        // Immersive dark surface for the live game screen.
         night: {
-          DEFAULT: "#1b1916",
-          800: "#232019",
-          700: "#2c2822",
-          600: "#3a352c",
+          DEFAULT: "rgb(var(--night) / <alpha-value>)",
+          800: "rgb(var(--night-800) / <alpha-value>)",
+          700: "rgb(var(--night-700) / <alpha-value>)",
+          600: "rgb(var(--night-600) / <alpha-value>)",
+          foreground: "rgb(var(--night-foreground) / <alpha-value>)",
         },
-        // Board squares — driven by CSS variables so Settings can retheme them.
+        "on-accent": "rgb(var(--on-accent) / <alpha-value>)",
         board: {
-          light: "var(--board-light)",
-          dark: "var(--board-dark)",
+          light: "rgb(var(--board-light) / <alpha-value>)",
+          dark: "rgb(var(--board-dark) / <alpha-value>)",
         },
       },
       fontFamily: {

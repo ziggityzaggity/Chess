@@ -66,7 +66,7 @@ function LoginContent() {
             <KnightMark className="h-40 w-40 text-gold" />
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-paper">
+            <p className="text-2xl font-bold text-night-foreground">
               Your games, wherever you play.
             </p>
             <p className="mt-2 text-sm text-white/55">

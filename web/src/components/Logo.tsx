@@ -32,7 +32,7 @@ export function Logo({
       <KnightMark className="h-7 w-7 text-gold transition-transform group-hover:-translate-y-0.5" />
       <span
         className={`text-lg font-extrabold tracking-tight ${
-          tone === "light" ? "text-paper" : "text-ink"
+          tone === "light" ? "text-night-foreground" : "text-ink"
         }`}
       >
         PyChess

@@ -64,7 +64,7 @@ export function AuthForm({
   }
 
   const inputClass =
-    "w-full rounded-2xl border border-line bg-white px-4 py-3.5 text-ink shadow-sm outline-none transition placeholder:text-muted-light focus:border-gold/60 focus:ring-4 focus:ring-gold/10";
+    "w-full rounded-2xl border border-line bg-surface px-4 py-3.5 text-ink shadow-sm outline-none transition placeholder:text-muted-light focus:border-gold/60 focus:ring-4 focus:ring-gold/10";
 
   return (
     <div className="mt-9 max-w-md space-y-5">
@@ -159,7 +159,7 @@ export function AuthForm({
         type="button"
         onClick={handleGoogle}
         disabled={!configured}
-        className="flex w-full items-center justify-center gap-3 rounded-2xl border border-line bg-white px-6 py-3.5 text-base font-semibold text-ink transition hover:bg-paper-50 disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex w-full items-center justify-center gap-3 rounded-2xl border border-line bg-surface px-6 py-3.5 text-base font-semibold text-ink transition hover:bg-paper-50 disabled:cursor-not-allowed disabled:opacity-40"
       >
         <GoogleIcon className="h-5 w-5" />
         Continue with Google

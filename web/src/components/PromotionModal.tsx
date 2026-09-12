@@ -28,7 +28,7 @@ export function PromotionModal({
       onClick={onCancel}
     >
       <div
-        className="animate-pop-in rounded-2xl border border-line bg-white p-5 shadow-pop"
+        className="animate-pop-in rounded-2xl border border-line bg-surface p-5 shadow-pop"
         onClick={(e) => e.stopPropagation()}
       >
         <p className="mb-3 text-center text-sm font-semibold text-muted">

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadEngine, type ChessGame } from "./engine";
 import { chooseBotMove } from "./bot";
+import type { BotId } from "./bots";
 
 export type EngineStatus = "loading" | "ready" | "error";
 
@@ -77,6 +78,7 @@ export interface UseChessGameOptions {
   mode?: GameMode;
   /** Which colour the bot plays (0 white, 1 black). Only used when mode="bot". */
   botColor?: number;
+  botId?: BotId;
 }
 
 export interface UseChessGame {
@@ -109,6 +111,7 @@ export interface UseChessGame {
 export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
   const mode = options.mode ?? "local";
   const botColor = options.botColor ?? 1;
+  const botId = options.botId ?? "greedy";
 
   const gameRef = useRef<ChessGame | null>(null);
   const scratchRef = useRef<ChessGame | null>(null); // used only by the bot
@@ -119,7 +122,7 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
 
   const [selected, setSelected] = useState(-1);
   const [legalTargets, setLegalTargets] = useState<number[]>([]);
-  const [flipped, setFlipped] = useState(false);
+  const [flipped, setFlipped] = useState(mode === "bot" && botColor === 0);
   const [promotion, setPromotion] = useState<PendingPromotion | null>(null);
   const [botThinking, setBotThinking] = useState(false);
   const [manualResult, setManualResult] = useState<ManualResult | null>(null);
@@ -283,13 +286,13 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
   const resign = useCallback(() => {
     const game = gameRef.current;
     if (!game || manualResult || game.isGameOver()) return;
-    const whiteToMove = game.turn() === 0;
-    const loser = whiteToMove ? "White" : "Black";
+    const loserColor = mode === "bot" ? 1 - botColor : game.turn();
+    const loser = loserColor === 0 ? "White" : "Black";
     setManualResult({
-      result: whiteToMove ? 2 : 1,
+      result: loserColor === 0 ? 2 : 1,
       label: `${loser} resigned`,
     });
-  }, [manualResult]);
+  }, [manualResult, mode, botColor]);
 
   const agreeDraw = useCallback(() => {
     const game = gameRef.current;
@@ -321,7 +324,7 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
         setBotThinking(false);
         return;
       }
-      const uci = chooseBotMove(scratch, game.fen(), botColor);
+      const uci = chooseBotMove(scratch, game.fen(), botColor, botId);
       if (uci) {
         play(
           squareFromName(uci.slice(0, 2)),
@@ -336,7 +339,7 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
       window.clearTimeout(timer);
       setBotThinking(false);
     };
-  }, [mode, botColor, status, snapshot, manualResult, play]);
+  }, [mode, botColor, botId, status, snapshot, manualResult, play]);
 
   return {
     status,

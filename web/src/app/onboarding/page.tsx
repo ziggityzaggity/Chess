@@ -41,7 +41,7 @@ export default function OnboardingPage() {
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-md flex-col justify-center px-4 py-12 sm:px-6">
-      <div className="animate-fade-in rounded-3xl border border-line bg-white p-8 shadow-card sm:p-10">
+      <div className="animate-fade-in rounded-3xl border border-line bg-surface p-8 shadow-card sm:p-10">
         <div className="flex items-center gap-3">
           <KnightMark className="h-8 w-8 text-gold" />
           <span className="text-xs font-bold uppercase tracking-wider text-muted">
@@ -70,7 +70,7 @@ export default function OnboardingPage() {
               placeholder="e.g. KnightRider"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              className="w-full rounded-2xl border border-line bg-white px-4 py-3.5 text-ink shadow-sm outline-none transition placeholder:text-muted-light focus:border-gold/60 focus:ring-4 focus:ring-gold/10"
+              className="w-full rounded-2xl border border-line bg-surface px-4 py-3.5 text-ink shadow-sm outline-none transition placeholder:text-muted-light focus:border-gold/60 focus:ring-4 focus:ring-gold/10"
             />
           </label>
 
@@ -87,7 +87,7 @@ export default function OnboardingPage() {
               value={birthDate}
               max={new Date().toISOString().slice(0, 10)}
               onChange={(e) => setBirthDate(e.target.value)}
-              className="w-full rounded-2xl border border-line bg-white px-4 py-3.5 text-ink shadow-sm outline-none transition focus:border-gold/60 focus:ring-4 focus:ring-gold/10"
+              className="w-full rounded-2xl border border-line bg-surface px-4 py-3.5 text-ink shadow-sm outline-none transition focus:border-gold/60 focus:ring-4 focus:ring-gold/10"
             />
             <span className="mt-2 block text-xs text-muted">
               We only use this to personalize your experience — you can leave it

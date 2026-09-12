@@ -63,8 +63,8 @@ export default function AssistantPage() {
                   onClick={() => setActive(i)}
                   className={`w-full rounded-2xl px-4 py-3 text-left transition ${
                     active === i
-                      ? "bg-white shadow-sm"
-                      : "hover:bg-white/60"
+                      ? "bg-surface shadow-sm"
+                      : "hover:bg-surface/60"
                   }`}
                 >
                   <div className="text-sm font-semibold text-ink">{c.title}</div>
@@ -99,7 +99,7 @@ export default function AssistantPage() {
               ) : (
                 <div
                   key={i}
-                  className="rounded-3xl border border-line bg-white px-6 py-5 shadow-sm"
+                  className="rounded-3xl border border-line bg-surface px-6 py-5 shadow-sm"
                 >
                   <p className="text-xs font-bold uppercase tracking-wider text-gold-600">
                     Assistant
@@ -123,7 +123,7 @@ export default function AssistantPage() {
 
           {/* Composer */}
           <div className="sticky bottom-4 mt-4">
-            <div className="flex items-center gap-2 rounded-full border border-line bg-white py-2 pl-6 pr-2 shadow-card">
+            <div className="flex items-center gap-2 rounded-full border border-line bg-surface py-2 pl-6 pr-2 shadow-card">
               <input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}

@@ -9,7 +9,8 @@
     "prebuild": "node scripts/copy-engine.mjs",
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test:bots": "node scripts/test-bots.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
