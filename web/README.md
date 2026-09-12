@@ -73,3 +73,38 @@ npm run dev        # also stages the engine into public/engine
 npm run build
 npm start
 ```
+
+## Tests
+
+`tests/auth-flows.test.ts` ([Vitest](https://vitest.dev)) confirms the login and
+registration flows against the real Supabase project:
+
+- **Google** — the provider is enabled and `signInWithOAuth` builds an
+  authorization URL that redirects to Google's consent screen with a configured
+  client id and returns through `/auth/callback`.
+- **Email one-time code** — a new email registers into a signed-in session with
+  an auto-provisioned `profiles` row, a returning user logs in with a fresh
+  code, onboarding writes the profile under RLS (and a cross-user write is
+  blocked), and an unknown email is rejected on login rather than silently
+  creating an account.
+
+```sh
+npm test          # Google + config checks (public keys from .env.test)
+```
+
+The email-OTP tests create and delete a throwaway user, so they need the
+service-role key and are **skipped** without it. To run the full suite, provide
+it in the environment (never commit it — Supabase dashboard → Project Settings →
+API → `service_role`):
+
+```sh
+# PowerShell
+$env:SUPABASE_SERVICE_ROLE_KEY = "<service_role key>"; npm test
+# bash
+SUPABASE_SERVICE_ROLE_KEY="<service_role key>" npm test
+```
+
+CI runs the same suite on every `web/**` change
+([`.github/workflows/web-tests.yml`](../.github/workflows/web-tests.yml)); add a
+`SUPABASE_SERVICE_ROLE_KEY` repository secret to include the email-OTP tests
+there too.
