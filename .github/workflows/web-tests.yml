@@ -1,0 +1,38 @@
+name: Web tests
+
+# Runs the auth-flow tests against the live Supabase project. The Google/config
+# checks use the committed public keys in web/.env.test and always run. The
+# end-to-end email-OTP tests (which create and delete a throwaway user) also run
+# when the SUPABASE_SERVICE_ROLE_KEY repository secret is set; without it they
+# skip cleanly.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - ".github/workflows/web-tests.yml"
+  pull_request:
+    paths:
+      - "web/**"
+      - ".github/workflows/web-tests.yml"
+  workflow_dispatch:
+
+jobs:
+  auth-flows:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Run auth-flow tests
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm test
