@@ -10,12 +10,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-<<<<<<< HEAD
-    "test:bots": "node scripts/test-bots.mjs"
-=======
     "test": "vitest run",
-    "test:watch": "vitest"
->>>>>>> b8b8a43625fd487cb0a6b01a78a167b663ec33e5
+    "test:watch": "vitest",
+    "test:bots": "node scripts/test-bots.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
