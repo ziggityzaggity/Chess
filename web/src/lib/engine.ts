@@ -47,6 +47,8 @@ export interface ChessGame {
   drawReason(): number;
   pgn(): string;
   legalUci(): string[];
+  /** Release the underlying embind/WASM object. */
+  delete(): void;
 }
 
 interface EngineModule {

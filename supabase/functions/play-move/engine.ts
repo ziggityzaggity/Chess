@@ -71,9 +71,15 @@ const modulePromise: Promise<EngineModule> = createChessEngine({
     imports: WebAssembly.Imports,
     successCallback: (instance: WebAssembly.Instance) => void,
   ) => {
-    WebAssembly.instantiate(wasmBinary, imports).then((result) =>
-      successCallback(result.instance)
-    );
+    (WebAssembly.instantiate(wasmBinary, imports) as unknown as Promise<{ instance: WebAssembly.Instance }>)
+      .then((result) => successCallback(result.instance))
+      .catch((e) => {
+        // A failed instantiate must not leave modulePromise hanging forever;
+        // surface it so validateMove rejects quickly instead of every request
+        // timing out.
+        console.error("chess engine wasm instantiate failed:", e);
+        throw e;
+      });
     return {};
   },
 });

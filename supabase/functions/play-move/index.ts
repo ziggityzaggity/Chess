@@ -32,18 +32,38 @@ const svcHeaders = {
   "Content-Type": "application/json",
 };
 
+interface GameRow {
+  id: string;
+  status: string;
+  host_id: string;
+  guest_id: string | null;
+  host_color: string;
+  fen: string;
+  moves: { uci: string }[] | null;
+  move_count: number;
+  time_control: string;
+  clock_white_ms: number | null;
+  clock_black_ms: number | null;
+  last_move_at: string;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   // 1. Identify the caller from their JWT (validated against the auth server).
   const authHeader = req.headers.get("Authorization") ?? "";
-  const userRes = await fetch(`${URL}/auth/v1/user`, {
-    headers: { apikey: ANON, Authorization: authHeader },
-  });
-  if (!userRes.ok) return json({ error: "not_authenticated" }, 401);
-  const user = await userRes.json();
-  const uid: string | undefined = user?.id;
+  let uid: string | undefined;
+  try {
+    const userRes = await fetch(`${URL}/auth/v1/user`, {
+      headers: { apikey: ANON, Authorization: authHeader },
+    });
+    if (!userRes.ok) return json({ error: "not_authenticated" }, 401);
+    const user = await userRes.json();
+    uid = user?.id;
+  } catch {
+    return json({ error: "upstream_unavailable" }, 502);
+  }
   if (!uid) return json({ error: "not_authenticated" }, 401);
 
   // 2. Parse request.
@@ -54,17 +74,27 @@ Deno.serve(async (req) => {
     return json({ error: "bad_request" }, 400);
   }
   const { gameId, uci, expectedMoveCount } = payload;
-  if (!gameId || typeof uci !== "string" || typeof expectedMoveCount !== "number") {
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (
+    typeof gameId !== "string" || !UUID_RE.test(gameId) ||
+    typeof uci !== "string" || typeof expectedMoveCount !== "number"
+  ) {
     return json({ error: "bad_request" }, 400);
   }
 
-  // 3. Read the authoritative game row (service role).
-  const rowRes = await fetch(
-    `${URL}/rest/v1/active_games?id=eq.${gameId}&select=id,status,host_id,guest_id,host_color,fen,moves,move_count,time_control,clock_white_ms,clock_black_ms,last_move_at`,
-    { headers: svcHeaders },
-  );
-  const rows = await rowRes.json();
-  const g = Array.isArray(rows) ? rows[0] : null;
+  // 3. Read the authoritative game row (service role). gameId is a validated
+  // UUID, so it cannot inject extra PostgREST query parameters.
+  let g: GameRow | null = null;
+  try {
+    const rowRes = await fetch(
+      `${URL}/rest/v1/active_games?id=eq.${encodeURIComponent(gameId)}&select=id,status,host_id,guest_id,host_color,fen,moves,move_count,time_control,clock_white_ms,clock_black_ms,last_move_at`,
+      { headers: svcHeaders },
+    );
+    const rows = await rowRes.json();
+    g = Array.isArray(rows) && rows.length ? (rows[0] as GameRow) : null;
+  } catch {
+    return json({ error: "upstream_unavailable" }, 502);
+  }
   if (!g) return json({ error: "game_not_found" }, 404);
 
   // 4. Cheap authoritative checks before touching the engine.
@@ -97,29 +127,35 @@ Deno.serve(async (req) => {
   }
 
   // 7. Apply atomically via the service-role-only RPC.
-  const applyRes = await fetch(`${URL}/rest/v1/rpc/apply_validated_move`, {
-    method: "POST",
-    headers: svcHeaders,
-    body: JSON.stringify({
-      p_game_id: gameId,
-      p_user_id: uid,
-      p_expected_move_count: expectedMoveCount,
-      p_uci: uci,
-      p_san: v.san,
-      p_new_fen: v.fen,
-      p_clock_white_ms: cw,
-      p_clock_black_ms: cb,
-      p_game_over: v.gameOver,
-      p_result: v.result,
-      p_end_reason: v.endReason,
-    }),
-  });
-  if (!applyRes.ok) {
-    const err = await applyRes.json().catch(() => ({}));
-    // PostgREST maps our PTxyz errcodes to HTTP status; surface as conflict.
-    return json({ accepted: false, reason: err?.message ?? "apply_failed" }, applyRes.status === 404 ? 404 : 409);
+  let applied: { move_count?: number; status?: string; result?: string | null; end_reason?: string | null } = {};
+  try {
+    const applyRes = await fetch(`${URL}/rest/v1/rpc/apply_validated_move`, {
+      method: "POST",
+      headers: svcHeaders,
+      body: JSON.stringify({
+        p_game_id: gameId,
+        p_user_id: uid,
+        p_expected_move_count: expectedMoveCount,
+        p_uci: uci,
+        p_san: v.san,
+        p_new_fen: v.fen,
+        p_clock_white_ms: cw,
+        p_clock_black_ms: cb,
+        p_game_over: v.gameOver,
+        p_result: v.result,
+        p_end_reason: v.endReason,
+      }),
+    });
+    if (!applyRes.ok) {
+      const err = await applyRes.json().catch(() => ({}));
+      // PostgREST maps our PTxyz errcodes to HTTP status; surface as conflict.
+      return json({ accepted: false, reason: err?.message ?? "apply_failed" }, applyRes.status === 404 ? 404 : 409);
+    }
+    const arr = await applyRes.json();
+    applied = Array.isArray(arr) && arr.length ? arr[0] : {};
+  } catch {
+    return json({ error: "upstream_unavailable" }, 502);
   }
-  const applied = (await applyRes.json())?.[0] ?? {};
   const newMoveCount = applied.move_count ?? expectedMoveCount + 1;
 
   // 8. Broadcast the new authoritative state to the private per-game channel.

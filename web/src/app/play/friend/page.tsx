@@ -1,59 +1,117 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { KnightMark } from "@/components/Logo";
 import { TimeControlPicker } from "@/components/TimeControlPicker";
 import { timeControlLabel, type TimeControl } from "@/lib/timeControl";
+import { useAuth } from "@/lib/auth";
+import { getSupabase } from "@/lib/supabase/client";
+import { createOnlineGame, joinOnlineGame } from "@/lib/onlineGame";
 
-type Step = "choose" | "host" | "join" | "waiting" | "join-preview";
-type Invite = { code: string; password: string; time: TimeControl };
+type Step = "choose" | "host" | "join" | "waiting";
 
 const PRIMARY =
-  "rounded-full bg-ink px-6 py-3 text-sm font-bold text-paper transition hover:bg-ink-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold";
+  "rounded-full bg-ink px-6 py-3 text-sm font-bold text-paper transition hover:bg-ink-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold disabled:cursor-not-allowed disabled:opacity-40";
 const SECONDARY =
   "rounded-full border border-line px-6 py-3 text-sm font-semibold text-ink transition hover:bg-paper-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold";
 const INPUT =
   "mt-2 w-full rounded-2xl border border-line bg-paper-50 px-4 py-3.5 text-ink outline-none transition placeholder:text-muted-light focus:border-gold focus:ring-4 focus:ring-gold/10";
 
-// Preview only: this code does not reserve a room or connect to another player.
-function createPreviewCode() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = crypto.getRandomValues(new Uint8Array(6));
-  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
-}
-
 export default function FriendGamePage() {
+  const router = useRouter();
+  const { user, ready } = useAuth();
   const [step, setStep] = useState<Step>("choose");
+  const [color, setColor] = useState<"white" | "black">("white");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [time, setTime] = useState<TimeControl>(3);
   const [showPassword, setShowPassword] = useState(false);
-  const [invite, setInvite] = useState<Invite | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [invite, setInvite] = useState<{ id: string; code: string; password: string; time: TimeControl } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     heading.current?.focus();
   }, [step]);
 
+  // While hosting, poll until a guest joins, then enter the board.
+  useEffect(() => {
+    if (step !== "waiting" || !invite) return;
+    const supabase = getSupabase();
+    if (!supabase) return;
+    let stop = false;
+    const poll = async () => {
+      const { data } = await supabase
+        .from("active_games")
+        .select("status")
+        .eq("id", invite.id)
+        .maybeSingle();
+      if (stop) return;
+      if (!data) {
+        setError("This game is no longer available.");
+        setStep("choose");
+      } else if (data.status === "active") {
+        router.push(`/game/online?id=${invite.id}`);
+      }
+    };
+    const t = setInterval(poll, 2500);
+    void poll();
+    return () => {
+      stop = true;
+      clearInterval(t);
+    };
+  }, [step, invite, router]);
+
   function reset() {
     setCode("");
     setPassword("");
     setTime(3);
+    setColor("white");
     setShowPassword(false);
     setInvite(null);
+    setError(null);
     setStep("choose");
   }
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (step === "host") {
-      setInvite({ code: createPreviewCode(), password, time });
-      setStep("waiting");
-    } else if (step === "join") {
-      setCode(code.trim().toUpperCase());
-      setStep("join-preview");
+  const submit = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (busy) return;
+      setBusy(true);
+      setError(null);
+      try {
+        if (step === "host") {
+          const tc = time === "unlimited" ? "unlimited" : String(time);
+          const { id, code: newCode } = await createOnlineGame({ password, color, timeControl: tc });
+          setInvite({ id, code: newCode, password, time });
+          setStep("waiting");
+        } else if (step === "join") {
+          const id = await joinOnlineGame(code, password);
+          router.push(`/game/online?id=${id}`);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Something went wrong.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, step, time, password, color, code, router]
+  );
+
+  async function cancelInvite() {
+    const supabase = getSupabase();
+    if (invite && supabase) {
+      // Best-effort cancel of the waiting game.
+      try {
+        await supabase.rpc("resign_active_game", { p_game_id: invite.id });
+      } catch {
+        /* ignore */
+      }
     }
+    reset();
   }
 
   const titles: Record<Step, string> = {
@@ -61,22 +119,15 @@ export default function FriendGamePage() {
     host: "Start a game",
     join: "Join a game",
     waiting: "Your game invitation",
-    "join-preview": "Join game preview",
   };
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-      <Link
-        href="/play"
-        className="text-sm font-semibold text-muted transition hover:text-ink"
-      >
+      <Link href="/play" className="text-sm font-semibold text-muted transition hover:text-ink">
         <span aria-hidden="true">← </span>Back to play
       </Link>
       <div className="mt-8 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gold-600">
         <KnightMark className="h-5 w-5" /> Private game
-        <span className="ml-auto rounded-full border border-line bg-surface px-3 py-1 text-muted">
-          Preview
-        </span>
       </div>
       <h1
         ref={heading}
@@ -86,6 +137,22 @@ export default function FriendGamePage() {
         {titles[step]}
       </h1>
 
+      {ready && !user && (
+        <p className="mt-6 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          You need to{" "}
+          <Link href="/login" className="font-bold underline">
+            sign in
+          </Link>{" "}
+          to play online with a friend.
+        </p>
+      )}
+
+      {error && (
+        <p className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          {error}
+        </p>
+      )}
+
       {step === "choose" && (
         <>
           <p className="mt-4 text-base leading-relaxed text-muted">
@@ -94,55 +161,29 @@ export default function FriendGamePage() {
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {(
               [
-                {
-                  id: "host",
-                  title: "Start a game",
-                  description:
-                    "Choose a time limit and add an optional password.",
-                  symbol: "+",
-                },
-                {
-                  id: "join",
-                  title: "Join a game",
-                  description: "Enter your friend’s game code and password.",
-                  symbol: "→",
-                },
+                { id: "host", title: "Start a game", description: "Choose a time limit and add an optional password.", symbol: "+" },
+                { id: "join", title: "Join a game", description: "Enter your friend's game code and password.", symbol: "→" },
               ] as const
             ).map((choice) => (
               <button
                 key={choice.id}
                 type="button"
+                disabled={ready && !user}
                 onClick={() => setStep(choice.id)}
-                className="group flex flex-col items-start rounded-3xl border border-line bg-surface p-6 text-left shadow-card transition hover:border-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
+                className="group flex flex-col items-start rounded-3xl border border-line bg-surface p-6 text-left shadow-card transition hover:border-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <span
-                  aria-hidden="true"
-                  className="grid h-12 w-12 place-items-center rounded-2xl bg-gold/10 text-2xl text-gold-600"
-                >
+                <span aria-hidden="true" className="grid h-12 w-12 place-items-center rounded-2xl bg-gold/10 text-2xl text-gold-600">
                   {choice.symbol}
                 </span>
-                <span className="mt-5 block text-xl font-bold text-ink">
-                  {choice.title}
-                </span>
-                <span className="mt-2 block text-sm leading-relaxed text-muted">
-                  {choice.description}
-                </span>
-                <span
-                  aria-hidden="true"
-                  className="mt-auto block pt-6 text-sm font-bold text-gold-600"
-                >
+                <span className="mt-5 block text-xl font-bold text-ink">{choice.title}</span>
+                <span className="mt-2 block text-sm leading-relaxed text-muted">{choice.description}</span>
+                <span aria-hidden="true" className="mt-auto block pt-6 text-sm font-bold text-gold-600">
                   Continue{" "}
-                  <span className="inline-block transition-transform group-hover:translate-x-1">
-                    →
-                  </span>
+                  <span className="inline-block transition-transform group-hover:translate-x-1">→</span>
                 </span>
               </button>
             ))}
           </div>
-          <p className="mt-6 text-sm leading-relaxed text-muted">
-            Online multiplayer is coming soon. Explore the invitation flow with
-            a preview game.
-          </p>
         </>
       )}
 
@@ -150,27 +191,39 @@ export default function FriendGamePage() {
         <>
           <p className="mt-4 text-base leading-relaxed text-muted">
             {step === "host"
-              ? "Choose a time limit and add an optional password for your friend."
+              ? "Choose your side, a time limit, and an optional password."
               : "Enter the invitation details from your friend."}
           </p>
-          <form
-            onSubmit={submit}
-            className="mt-8 rounded-3xl border border-line bg-surface p-6 shadow-card sm:p-8"
-          >
+          <form onSubmit={submit} className="mt-8 rounded-3xl border border-line bg-surface p-6 shadow-card sm:p-8">
             {step === "host" && (
-              <div className="mb-8">
-                <TimeControlPicker value={time} onChange={setTime} />
-                <p className="mt-3 text-xs text-muted">
-                  Choose ∞ to play without a clock.
-                </p>
-              </div>
+              <>
+                <fieldset className="mb-8">
+                  <legend className="text-sm font-semibold text-ink">Your side</legend>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {(["white", "black"] as const).map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        aria-pressed={color === c}
+                        onClick={() => setColor(c)}
+                        className={`rounded-2xl border px-4 py-3 text-sm font-semibold capitalize transition ${
+                          color === c ? "border-gold bg-gold/10 text-ink" : "border-line text-muted hover:border-ink/20"
+                        }`}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+                <div className="mb-8">
+                  <TimeControlPicker value={time} onChange={setTime} />
+                  <p className="mt-3 text-xs text-muted">Choose ∞ to play without a clock.</p>
+                </div>
+              </>
             )}
             {step === "join" && (
               <div className="mb-6">
-                <label
-                  htmlFor="game-code"
-                  className="text-sm font-semibold text-ink"
-                >
+                <label htmlFor="game-code" className="text-sm font-semibold text-ink">
                   Game code
                 </label>
                 <input
@@ -181,29 +234,17 @@ export default function FriendGamePage() {
                   maxLength={6}
                   pattern="[A-Za-z0-9]{6}"
                   value={code}
-                  onChange={(event) =>
-                    setCode(event.target.value.toUpperCase())
-                  }
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
                   autoComplete="off"
                   autoCapitalize="characters"
                   spellCheck={false}
                   placeholder="ABC123"
-                  aria-describedby="code-hint"
                   className={`${INPUT} font-mono uppercase tracking-[0.2em]`}
                 />
-                <p id="code-hint" className="mt-2 text-xs text-muted">
-                  The 6-character code from your invitation.
-                </p>
               </div>
             )}
-            <label
-              htmlFor="game-password"
-              className="text-sm font-semibold text-ink"
-            >
-              Game password{" "}
-              {step === "host" && (
-                <span className="font-normal text-muted">(optional)</span>
-              )}
+            <label htmlFor="game-password" className="text-sm font-semibold text-ink">
+              Game password {step === "host" && <span className="font-normal text-muted">(optional)</span>}
             </label>
             <div className="relative">
               <input
@@ -211,133 +252,67 @@ export default function FriendGamePage() {
                 name="game-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(e) => setPassword(e.target.value)}
                 maxLength={64}
                 autoComplete="off"
                 spellCheck={false}
-                aria-describedby="password-hint"
                 className={`${INPUT} pr-20`}
               />
               <button
                 type="button"
-                aria-label={
-                  showPassword ? "Hide game password" : "Show game password"
-                }
+                aria-label={showPassword ? "Hide game password" : "Show game password"}
                 aria-pressed={showPassword}
-                onClick={() => setShowPassword((visible) => !visible)}
+                onClick={() => setShowPassword((v) => !v)}
                 className="absolute bottom-1.5 right-2 rounded-lg px-3 py-2.5 text-xs font-bold text-muted hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
-            <p
-              id="password-hint"
-              className="mt-2 text-xs leading-relaxed text-muted"
-            >
-              {step === "host"
-                ? "Up to 64 characters. You’ll see the password on your invitation screen."
-                : "Leave blank if your friend didn’t set a password."}
-            </p>
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button type="button" onClick={reset} className={SECONDARY}>
                 Back
               </button>
-              <button type="submit" className={PRIMARY}>
-                {step === "host" ? "Create game" : "Join game"}
+              <button type="submit" disabled={busy || (ready && !user)} className={PRIMARY}>
+                {busy ? (step === "host" ? "Creating…" : "Joining…") : step === "host" ? "Create game" : "Join game"}
               </button>
             </div>
           </form>
-          <p className="mt-5 text-sm text-muted">
-            Preview only — online multiplayer is coming soon.
-          </p>
         </>
       )}
 
       {step === "waiting" && invite && (
         <>
           <p className="mt-4 text-base leading-relaxed text-muted">
-            Your invitation details are ready.
+            Share these details with your friend. The game starts automatically when they join.
           </p>
-          <section
-            aria-label="Game invitation"
-            className="mt-8 rounded-3xl border border-line bg-surface p-6 text-center shadow-card sm:p-10"
-          >
+          <section aria-label="Game invitation" className="mt-8 rounded-3xl border border-line bg-surface p-6 text-center shadow-card sm:p-10">
             <dl>
-              <dt className="text-xs font-bold uppercase tracking-wider text-muted">
-                Game code
-              </dt>
+              <dt className="text-xs font-bold uppercase tracking-wider text-muted">Game code</dt>
               <dd className="mt-3 select-all break-all font-mono text-4xl font-bold tracking-[0.12em] text-ink sm:text-6xl">
                 {invite.code}
               </dd>
-              <dt className="mt-8 text-xs font-bold uppercase tracking-wider text-muted">
-                Game password
-              </dt>
-              <dd className="mt-3 min-h-9 select-all whitespace-pre-wrap break-all font-mono text-3xl font-bold text-ink sm:min-h-10 sm:text-4xl">
-                {invite.password}
-              </dd>
-              <dt className="mt-8 text-xs font-bold uppercase tracking-wider text-muted">
-                Time per player
-              </dt>
-              <dd
-                className="mt-3 text-2xl font-bold text-ink"
-                aria-label={
-                  invite.time === "unlimited" ? "Unlimited time" : undefined
-                }
-              >
-                {timeControlLabel(invite.time)}
-              </dd>
+              {invite.password && (
+                <>
+                  <dt className="mt-8 text-xs font-bold uppercase tracking-wider text-muted">Game password</dt>
+                  <dd className="mt-3 select-all whitespace-pre-wrap break-all font-mono text-3xl font-bold text-ink sm:text-4xl">
+                    {invite.password}
+                  </dd>
+                </>
+              )}
+              <dt className="mt-8 text-xs font-bold uppercase tracking-wider text-muted">Time per player</dt>
+              <dd className="mt-3 text-2xl font-bold text-ink">{timeControlLabel(invite.time)}</dd>
             </dl>
-            <p
-              role="status"
-              className="mt-10 flex items-center justify-center gap-3 border-t border-line pt-6 text-sm font-semibold text-muted sm:text-base"
-            >
-              <span
-                aria-hidden="true"
-                className="h-2 w-2 shrink-0 rounded-full bg-gold motion-safe:animate-pulse"
-              />
-              Waiting for user to join...
+            <p role="status" className="mt-10 flex items-center justify-center gap-3 border-t border-line pt-6 text-sm font-semibold text-muted sm:text-base">
+              <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-gold motion-safe:animate-pulse" />
+              Waiting for your friend to join…
             </p>
           </section>
-          <p className="mt-5 text-center text-sm leading-relaxed text-muted">
-            This is a preview invitation. Other players can join once online
-            multiplayer is available.
-          </p>
           <div className="mt-6 text-center">
-            <button type="button" onClick={reset} className={SECONDARY}>
+            <button type="button" onClick={cancelInvite} className={SECONDARY}>
               Cancel invitation
             </button>
           </div>
         </>
-      )}
-
-      {step === "join-preview" && (
-        <section className="mt-8 rounded-3xl border border-line bg-surface p-6 shadow-card sm:p-8">
-          <p className="text-xs font-bold uppercase tracking-wider text-muted">
-            Game code
-          </p>
-          <p className="mt-3 break-all font-mono text-3xl font-bold tracking-[0.12em] text-ink sm:text-4xl">
-            {code}
-          </p>
-          <p
-            role="status"
-            className="mt-6 text-base leading-relaxed text-muted"
-          >
-            Online multiplayer is coming soon. This preview can’t check the game
-            code or password, or connect you to another player yet.
-          </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => setStep("join")}
-              className={PRIMARY}
-            >
-              Edit game details
-            </button>
-            <button type="button" onClick={reset} className={SECONDARY}>
-              Back to invitations
-            </button>
-          </div>
-        </section>
       )}
     </main>
   );

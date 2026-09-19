@@ -98,11 +98,15 @@ create index game_archive_white_idx  on public.game_archive (white_id, finished_
 create index game_archive_black_idx  on public.game_archive (black_id, finished_at desc);
 create index game_archive_active_idx on public.game_archive (active_game_id);
 
--- Rate-limit log: one row per hosted game (5/hour, 100/lifetime).
+-- Rate-limit log: one row per hosted game. Every creation counts toward the
+-- hourly cap (anti-spam), but only games a guest actually joined (activated_at
+-- set) count toward the lifetime cap, so cancelled/never-joined games don't
+-- permanently consume a player's lifetime allowance.
 create table public.hosted_games (
   id             uuid primary key default gen_random_uuid(),
   host_id        uuid not null references public.profiles (id) on delete cascade,
   active_game_id uuid,
+  activated_at   timestamptz,
   created_at     timestamptz not null default now()
 );
 create index hosted_games_host_idx on public.hosted_games (host_id, created_at desc);
@@ -252,12 +256,14 @@ begin
   if uid is null then raise exception using errcode = 'PT401', message = 'not_authenticated'; end if;
   if p_host_color not in ('white', 'black') then
     raise exception using errcode = 'PT400', message = 'bad_color'; end if;
-  if p_time_control not in ('1', '3', '5', '10', 'unlimited') then
+  if p_time_control not in ('3', '10', '30', 'unlimited') then
     raise exception using errcode = 'PT400', message = 'bad_time_control'; end if;
 
   -- Serialize per user so concurrent creates cannot slip past the counts.
   perform pg_advisory_xact_lock(hashtextextended('host:' || uid::text, 0));
-  select count(*) into v_lifetime from public.hosted_games where host_id = uid;
+  -- Lifetime cap counts only games that actually started (a guest joined).
+  select count(*) into v_lifetime from public.hosted_games
+    where host_id = uid and activated_at is not null;
   if v_lifetime >= 100 then raise exception using errcode = 'PT429', message = 'limit_lifetime'; end if;
   select count(*) into v_hour from public.hosted_games
     where host_id = uid and created_at > now() - interval '1 hour';
@@ -287,8 +293,11 @@ begin
 end $$;
 
 -- Join a waiting game by code (+ optional password). Race-safe single-winner.
+-- Returns an OUTCOME row (ok/reason) rather than raising for credential/lookup
+-- failures, so the throttle log row commits even when the attempt fails (a
+-- RAISE would roll it back, making brute-force throttling inert).
 create or replace function public.join_active_game(p_code text, p_password text)
-returns table (id uuid, host_color text, status text, fen text,
+returns table (ok boolean, reason text, id uuid, host_color text, status text, fen text,
                moves jsonb, move_count int, time_control text, created_at timestamptz)
 language plpgsql security definer set search_path = '' as $$
 #variable_conflict use_column
@@ -303,23 +312,40 @@ begin
   if v_recent > 30 then raise exception using errcode = 'PT429', message = 'too_many_join_attempts'; end if;
 
   select * into g from public.active_games where code = upper(p_code) and status = 'waiting' for update;
-  if not found then raise exception using errcode = 'PT404', message = 'game_not_found'; end if;
-  if g.host_id = uid then raise exception using errcode = 'PT400', message = 'cannot_join_own_game'; end if;
+  if not found then
+    return query select false, 'game_not_found', null::uuid, null::text, null::text,
+                 null::text, null::jsonb, null::int, null::text, null::timestamptz;
+    return;
+  end if;
+  if g.host_id = uid then
+    return query select false, 'cannot_join_own_game', null::uuid, null::text, null::text,
+                 null::text, null::jsonb, null::int, null::text, null::timestamptz;
+    return;
+  end if;
 
   select password_hash into v_hash from public.active_game_secrets where game_id = g.id;
-  if v_hash is not null then
-    if p_password is null or extensions.crypt(p_password, v_hash) <> v_hash then
-      raise exception using errcode = 'PT403', message = 'wrong_password';
-    end if;
+  if v_hash is not null and (p_password is null or extensions.crypt(p_password, v_hash) <> v_hash) then
+    return query select false, 'wrong_password', null::uuid, null::text, null::text,
+                 null::text, null::jsonb, null::int, null::text, null::timestamptz;
+    return;
   end if;
 
   update public.active_games ag
      set guest_id = uid, status = 'active', last_move_at = now()
    where ag.id = g.id and ag.status = 'waiting' and ag.guest_id is null;
-  if not found then raise exception using errcode = 'PT409', message = 'already_taken'; end if;
+  if not found then
+    return query select false, 'already_taken', null::uuid, null::text, null::text,
+                 null::text, null::jsonb, null::int, null::text, null::timestamptz;
+    return;
+  end if;
+
+  -- Mark the hosting record as a real (started) game for the lifetime cap.
+  update public.hosted_games set activated_at = now()
+   where active_game_id = g.id and activated_at is null;
 
   return query
-    select g.id, g.host_color, 'active'::text, g.fen, g.moves, g.move_count, g.time_control, g.created_at;
+    select true, null::text, g.id, g.host_color, 'active'::text, g.fen, g.moves,
+           g.move_count, g.time_control, g.created_at;
 end $$;
 
 -- Resign (or cancel a still-waiting game as its host).
