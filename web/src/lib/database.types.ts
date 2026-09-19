@@ -48,6 +48,8 @@ export type ActiveGameRow = {
   moves: MoveEntry[];
   move_count: number;
   time_control: string;
+  host_name: string | null;
+  guest_name: string | null;
   clock_white_ms: number | null;
   clock_black_ms: number | null;
   result: GameResult | null;
@@ -120,7 +122,7 @@ export type Database = {
         Returns: { id: string; code: string }[];
       };
       join_active_game: {
-        Args: { p_code: string; p_password: string };
+        Args: { p_code: string; p_password: string; p_guest_name?: string };
         Returns: {
           ok: boolean;
           reason: string | null;

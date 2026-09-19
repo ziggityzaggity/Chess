@@ -104,6 +104,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       return null;
     }
+    // Anonymous (guest) sessions power online play but are NOT a real account —
+    // present them as signed-out so the navbar, onboarding and login/register
+    // flows treat the visitor as a guest.
+    if (authUser.is_anonymous) {
+      setUser(null);
+      return null;
+    }
     const { data: profile } = await supabase
       .from("profiles")
       .select("nickname, birth_date, avatar")

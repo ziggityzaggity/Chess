@@ -26,6 +26,7 @@ export default function FriendGamePage() {
   const [color, setColor] = useState<"white" | "black">("white");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
+  const [guestName, setGuestName] = useState("");
   const [time, setTime] = useState<TimeControl>(3);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -68,6 +69,7 @@ export default function FriendGamePage() {
   function reset() {
     setCode("");
     setPassword("");
+    setGuestName("");
     setTime(3);
     setColor("white");
     setShowPassword(false);
@@ -89,7 +91,23 @@ export default function FriendGamePage() {
           setInvite({ id, code: newCode, password, time });
           setStep("waiting");
         } else if (step === "join") {
-          const id = await joinOnlineGame(code, password);
+          // Not signed in? Join as a guest — an anonymous session keeps the
+          // player a real participant (RLS, realtime and move validation all
+          // still work) without needing an account. Reuse any existing session
+          // (incl. an anonymous one) rather than minting a fresh guest each time,
+          // which would orphan accounts and drop access to an in-progress game.
+          if (!user) {
+            const supabase = getSupabase();
+            if (!supabase) throw new Error("Online play isn't configured.");
+            const { data: sess } = await supabase.auth.getSession();
+            if (!sess.session) {
+              const { error: anonErr } = await supabase.auth.signInAnonymously();
+              if (anonErr) {
+                throw new Error("Guest play isn't available right now — please sign in to join.");
+              }
+            }
+          }
+          const id = await joinOnlineGame(code, password, user ? undefined : guestName);
           router.push(`/game/online?id=${id}`);
         }
       } catch (e) {
@@ -98,7 +116,7 @@ export default function FriendGamePage() {
         setBusy(false);
       }
     },
-    [busy, step, time, password, color, code, router]
+    [busy, step, time, password, color, code, guestName, user, router]
   );
 
   async function cancelInvite() {
@@ -138,12 +156,13 @@ export default function FriendGamePage() {
       </h1>
 
       {ready && !user && (
-        <p className="mt-6 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          You need to{" "}
-          <Link href="/login" className="font-bold underline">
+        <p className="mt-6 rounded-2xl border border-line bg-paper-50 px-4 py-3 text-sm text-muted">
+          You can join a game as a guest — just enter the code and password. To{" "}
+          <span className="font-semibold text-ink">host</span> a game,{" "}
+          <Link href="/login" className="font-bold text-ink underline">
             sign in
-          </Link>{" "}
-          to play online with a friend.
+          </Link>
+          .
         </p>
       )}
 
@@ -162,13 +181,13 @@ export default function FriendGamePage() {
             {(
               [
                 { id: "host", title: "Start a game", description: "Choose a time limit and add an optional password.", symbol: "+" },
-                { id: "join", title: "Join a game", description: "Enter your friend's game code and password.", symbol: "→" },
+                { id: "join", title: "Join a game", description: "Enter your friend's code and password — no account needed.", symbol: "→" },
               ] as const
             ).map((choice) => (
               <button
                 key={choice.id}
                 type="button"
-                disabled={ready && !user}
+                disabled={choice.id === "host" && ready && !user}
                 onClick={() => setStep(choice.id)}
                 className="group flex flex-col items-start rounded-3xl border border-line bg-surface p-6 text-left shadow-card transition hover:border-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -221,6 +240,25 @@ export default function FriendGamePage() {
                 </div>
               </>
             )}
+            {step === "join" && !user && (
+              <div className="mb-6">
+                <label htmlFor="guest-name" className="text-sm font-semibold text-ink">
+                  Your name <span className="font-normal text-muted">(optional)</span>
+                </label>
+                <input
+                  id="guest-name"
+                  name="guest-name"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  maxLength={40}
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="Guest"
+                  className={INPUT}
+                />
+                <p className="mt-2 text-xs text-muted">Shown to your opponent — you&apos;ll play as a guest.</p>
+              </div>
+            )}
             {step === "join" && (
               <div className="mb-6">
                 <label htmlFor="game-code" className="text-sm font-semibold text-ink">
@@ -272,7 +310,11 @@ export default function FriendGamePage() {
               <button type="button" onClick={reset} className={SECONDARY}>
                 Back
               </button>
-              <button type="submit" disabled={busy || (ready && !user)} className={PRIMARY}>
+              <button
+                type="submit"
+                disabled={busy || (step === "host" && ready && !user)}
+                className={PRIMARY}
+              >
                 {busy ? (step === "host" ? "Creating…" : "Joining…") : step === "host" ? "Create game" : "Join game"}
               </button>
             </div>

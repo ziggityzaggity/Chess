@@ -117,7 +117,7 @@ function GameScreen() {
   const topColor = game.flipped ? 0 : 1;
 
   return (
-    <GameShell onNewGame={newGame} onFlip={game.flip} status={game.status}>
+    <GameShell onNewGame={newGame} onFlip={game.flip}>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* Board + players */}
         <div
@@ -193,12 +193,10 @@ function GameShell({
   children,
   onNewGame,
   onFlip,
-  status,
 }: {
   children: React.ReactNode;
   onNewGame?: () => void;
   onFlip?: () => void;
-  status?: string;
 }) {
   return (
     <div className="min-h-screen bg-night text-night-foreground">
@@ -223,22 +221,6 @@ function GameShell({
               New game
             </button>
           )}
-          <span className="flex items-center gap-2 text-sm text-night-foreground/70">
-            <span
-              className={`h-2 w-2 rounded-full ${
-                status === "error"
-                  ? "bg-red-400"
-                  : status === "ready"
-                    ? "bg-positive"
-                    : "bg-gold animate-pulse"
-              }`}
-            />
-            {status === "error"
-              ? "Engine offline"
-              : status === "ready"
-                ? "Engine ready"
-                : "Loading…"}
-          </span>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 pb-12 sm:px-6">{children}</main>

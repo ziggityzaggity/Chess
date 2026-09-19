@@ -44,6 +44,7 @@ const RPC_ERRORS: Record<string, string> = {
   limit_hour: "You can host up to 5 games per hour — try again later.",
   limit_lifetime: "You've reached the lifetime limit of hosted games.",
   not_authenticated: "Please sign in to play online.",
+  guest_cannot_host: "Create a free account to host a game.",
   game_not_found: "That game code wasn't found (it may have expired).",
   wrong_password: "That password is incorrect.",
   cannot_join_own_game: "You can't join your own game.",
@@ -73,12 +74,17 @@ export async function createOnlineGame(input: {
   return { id: row.id, code: row.code };
 }
 
-export async function joinOnlineGame(code: string, password: string): Promise<string> {
+export async function joinOnlineGame(
+  code: string,
+  password: string,
+  guestName?: string,
+): Promise<string> {
   const supabase = getSupabase();
   if (!supabase) throw new Error("Online play isn't configured.");
   const { data, error } = await supabase.rpc("join_active_game", {
     p_code: code.trim().toUpperCase(),
     p_password: password,
+    p_guest_name: guestName?.trim() || undefined,
   });
   if (error) throw new Error(friendlyError(error.message, "Couldn't join the game."));
   const row = Array.isArray(data) ? data[0] : data;
@@ -106,6 +112,8 @@ export interface OnlineGameState {
   hostColor: Color;
   hostId: string;
   guestId: string | null;
+  hostName: string | null;  // display-name snapshots on the game row (no profiles read)
+  guestName: string | null; // null until a guest has joined
   myColor: Color | null; // null while still resolving / spectator (not used)
   turn: Color; // side to move per fen
   result: string | null; // '1-0' | '0-1' | '1/2-1/2' | '*' | null
@@ -141,6 +149,8 @@ interface RowShape {
   host_color: Color;
   host_id: string;
   guest_id: string | null;
+  host_name: string | null;
+  guest_name: string | null;
   result: string | null;
   end_reason: string | null;
   clock_white_ms: number | null;
@@ -148,7 +158,7 @@ interface RowShape {
 }
 
 const ROW_COLS =
-  "id,status,fen,moves,move_count,host_color,host_id,guest_id,result,end_reason,clock_white_ms,clock_black_ms";
+  "id,status,fen,moves,move_count,host_color,host_id,guest_id,host_name,guest_name,result,end_reason,clock_white_ms,clock_black_ms";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -175,7 +185,6 @@ export function useOnlineGame(gameId: string): UseOnlineGame {
   const stateRef = useRef<OnlineGameState | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const meRef = useRef<string | null>(null);
-  const namesRef = useRef<Record<string, string>>({});
 
   const [connection, setConnection] = useState<ConnectionState>("loading");
   const [error, setError] = useState<string | null>(null);
@@ -202,9 +211,17 @@ export function useOnlineGame(gameId: string): UseOnlineGame {
       lastTo = squareFromName(last.uci.slice(2, 4));
     }
     const inCheck = eng.inCheck();
-    const whiteId = st.hostColor === "white" ? st.hostId : st.guestId;
-    const blackId = st.hostColor === "white" ? st.guestId : st.hostId;
-    const names = namesRef.current;
+    // Display names are snapshotted on the game row (host_name/guest_name), so
+    // the board never reads the profiles table. The guest slot is empty until
+    // someone joins a live game ("Waiting…"); the generic fallbacks only appear
+    // for a row that predates the snapshot columns.
+    const nameFor = (isGuestSlot: boolean): string => {
+      const snap = isGuestSlot ? st.guestName : st.hostName;
+      if (snap) return snap;
+      if (isGuestSlot && st.status !== "finished") return "Waiting…";
+      return isGuestSlot ? "Guest" : "Player";
+    };
+    const hostIsWhite = st.hostColor === "white";
     setSnapshot({
       board: eng.boardString(),
       turn: turnIdx,
@@ -219,28 +236,11 @@ export function useOnlineGame(gameId: string): UseOnlineGame {
       moveCount: st.moveCount,
       clockWhiteMs: st.clockWhiteMs,
       clockBlackMs: st.clockBlackMs,
-      whiteName: (whiteId && names[whiteId]) || "White",
-      blackName: (blackId && names[blackId]) || (blackId ? "Black" : "Waiting…"),
+      whiteName: hostIsWhite ? nameFor(false) : nameFor(true),
+      blackName: hostIsWhite ? nameFor(true) : nameFor(false),
     });
     setMoves(st.moves);
   }, []);
-
-  // Resolve the two players' nicknames (once known), then republish.
-  const resolveNames = useCallback(async () => {
-    const st = stateRef.current;
-    const supabase = getSupabase();
-    if (!st || !supabase) return;
-    const ids = [st.hostId, st.guestId].filter(
-      (id): id is string => !!id && !(id in namesRef.current)
-    );
-    if (ids.length === 0) return;
-    const { data } = await supabase.from("profiles").select("id,nickname").in("id", ids);
-    for (const row of data ?? []) {
-      namesRef.current[(row as { id: string }).id] =
-        (row as { nickname: string | null }).nickname || "Player";
-    }
-    publish();
-  }, [publish]);
 
   const applyRow = useCallback(
     (row: RowShape) => {
@@ -262,6 +262,8 @@ export function useOnlineGame(gameId: string): UseOnlineGame {
         hostColor: row.host_color,
         hostId: row.host_id,
         guestId: row.guest_id,
+        hostName: row.host_name,
+        guestName: row.guest_name,
         myColor,
         turn: row.fen.split(" ")[1] === "b" ? "black" : "white",
         result: row.result,
@@ -272,9 +274,8 @@ export function useOnlineGame(gameId: string): UseOnlineGame {
       setSelected(-1);
       setLegalTargets([]);
       publish();
-      void resolveNames();
     },
-    [publish, resolveNames]
+    [publish]
   );
 
   // Authoritative re-read of the game (source of truth on connect / gap / conflict).
@@ -295,13 +296,15 @@ export function useOnlineGame(gameId: string): UseOnlineGame {
     // finished state by replaying the archived moves to the final position.
     const { data: arch } = await supabase
       .from("game_archive")
-      .select("active_game_id,white_id,black_id,result,end_reason,moves,time_control")
+      .select("active_game_id,white_id,black_id,white_name,black_name,result,end_reason,moves,time_control")
       .eq("active_game_id", gameId)
       .maybeSingle();
     if (arch) {
       const a = arch as unknown as {
         white_id: string | null;
         black_id: string | null;
+        white_name: string;
+        black_name: string;
         result: string;
         end_reason: string | null;
         moves: MoveEntry[] | null;
@@ -329,6 +332,8 @@ export function useOnlineGame(gameId: string): UseOnlineGame {
         hostColor: "white", // synthetic: host=white so publish maps white/black correctly
         hostId: a.white_id ?? "",
         guestId: a.black_id,
+        hostName: a.white_name, // archived snapshots survive nickname changes / profile deletion
+        guestName: a.black_name,
         myColor,
         turn: finalFen.split(" ")[1] === "b" ? "black" : "white",
         result: a.result,
@@ -337,7 +342,6 @@ export function useOnlineGame(gameId: string): UseOnlineGame {
         clockBlackMs: null,
       };
       publish();
-      void resolveNames();
       return;
     }
     // Neither active nor archived, and nothing loaded yet -> not found.
@@ -345,7 +349,7 @@ export function useOnlineGame(gameId: string): UseOnlineGame {
       setError("This game wasn't found — it may have expired.");
       setConnection("error");
     }
-  }, [gameId, applyRow, publish, resolveNames]);
+  }, [gameId, applyRow, publish]);
 
   // Apply an authoritative payload (from a broadcast or our own HTTP response),
   // gated by the moveCount sequence.
