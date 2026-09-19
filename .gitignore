@@ -28,3 +28,6 @@ __pycache__/
 */.claude/
 */claude.md
 */agents.md
+
+# Supabase CLI local state
+supabase/.temp/
