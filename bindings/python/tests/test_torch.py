@@ -119,13 +119,16 @@ def test_real_gpu_self_test():
 
 # ----------------------------------------------------------------------------- player
 class MaterialNet(torch.nn.Module):
-    """Stand-in value network: confident logits from the material balance."""
+    """Stand-in value network: logits from the material balance (a pawn up ~ certain win
+    at the default scale; a small scale keeps probabilities from saturating)."""
 
-    VALUES = torch.tensor([1.0, 3.0, 3.0, 5.0, 9.0, 0.0]) * 10   # a pawn up ~ certain win
+    def __init__(self, scale: float = 10.0):
+        super().__init__()
+        self.values = torch.tensor([1.0, 3.0, 3.0, 5.0, 9.0, 0.0]) * scale
 
     def forward(self, x):
         counts = x[:, :12].sum(dim=(2, 3))
-        bal = (counts[:, :6] - counts[:, 6:]) @ self.VALUES.to(x.device)
+        bal = (counts[:, :6] - counts[:, 6:]) @ self.values.to(x.device)
         return torch.stack([bal, torch.zeros_like(bal), -bal], dim=1)
 
 
@@ -177,3 +180,33 @@ def test_select_moves_batched_matches_single():
     assert sampled["child"].shape == (3, 72)
     with pytest.raises(ValueError):
         player.select_moves(torch.from_numpy(ce.board_from_fen("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1")), model)
+
+
+# White's queen can grab d5, but the pawn is defended by e6.
+POISONED = "4k3/8/4p3/3p4/8/8/3Q4/4K3 w - - 0 1"
+
+
+def test_depth_two_sees_the_recapture():
+    evaluate = player.TorchEvaluator(MaterialNet(scale=0.5), device="cpu")
+    g = ce.Game(POISONED)
+    assert player.choose_move(g, evaluate, depth=1).san == "Qxd5"       # a pawn up... for one ply
+    best = player.choose_move(g, evaluate, depth=2)
+    assert best.san != "Qxd5"
+    scored = {s.san: s for s in player.score_moves(g, evaluate, depth=2)}
+    assert scored["Qxd5"].score < 0.5 < best.score                        # exd5 loses the queen
+    # Mates are still found first, and depth 2 leaves the game untouched.
+    assert player.choose_move(ce.Game("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1"), evaluate, depth=2).san == "Rd8#"
+    assert g.fen() == POISONED
+    with pytest.raises(ValueError):
+        player.score_moves(g, evaluate, depth=3)
+
+
+def test_batched_depth_two_matches_single_game():
+    model = MaterialNet(scale=0.5)
+    fens = [POISONED, "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1", "4k3/8/8/3q4/4P3/8/8/4K3 w - - 0 1"]
+    out = player.select_moves(torch.from_numpy(ce.boards_from_fens(fens)), model, depth=2)
+    evaluate = player.TorchEvaluator(model, device="cpu")
+    for fen, mv, score in zip(fens, ce.moves_to_uci(out["move"].numpy()), out["score"].tolist()):
+        scored = {s.uci: s.score for s in player.score_moves(ce.Game(fen), evaluate, depth=2)}
+        assert abs(scored[mv] - max(scored.values())) < 1e-5 and abs(score - scored[mv]) < 1e-5
+    assert ce.moves_to_uci(out["move"].numpy())[1:] == ["d1d8", "e4d5"]
