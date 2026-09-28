@@ -53,8 +53,8 @@ jobs:
         run: pip install torch --index-url https://download.pytorch.org/whl/cpu
       - name: Build and install chess_engine
         run: pip install -v ".[test]"
-      - name: Tests
-        run: pytest -q bindings/python/tests
+      - name: Tests (engine bindings + training-data selection)
+        run: pytest -q bindings/python/tests ai/data
 
   cuda:
     runs-on: ubuntu-latest
