@@ -1,0 +1,42 @@
+# Python package for the C++ chess engine (chess_engine), built with CMake via
+# scikit-build-core. From the repo root:
+#
+#   pip install .                    # CPU engine; CUDA kernels too if nvcc is found
+#   pip install ".[torch,test]"      # plus PyTorch helpers and the test suite
+#
+# CUDA is detected automatically (CHESS_CUDA=AUTO). Force it with
+#   pip install . -Ccmake.define.CHESS_CUDA=ON
+# and choose GPU architectures with -Ccmake.define.CMAKE_CUDA_ARCHITECTURES=75
+# (default: the GPUs nvidia-smi reports). See bindings/python/README.md.
+
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "chess-engine"
+version = "0.2.0"
+description = "PyChess C++ chess engine for Python: rules, PGN, neural-network encoding, multithreaded and CUDA batch move generation"
+readme = "bindings/python/README.md"
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.23"]
+
+[project.optional-dependencies]
+torch = ["torch>=2.1"]
+onnx = ["onnx>=1.15", "onnxruntime>=1.17"]
+test = ["pytest>=7", "chess>=1.10"]
+
+[tool.scikit-build]
+minimum-version = "0.10"
+cmake.version = ">=3.18"
+cmake.build-type = "Release"
+wheel.packages = ["bindings/python/chess_engine"]
+# Only what the engine needs goes into an sdist.
+sdist.include = ["core", "bindings/python", "CMakeLists.txt", "pyproject.toml"]
+sdist.exclude = ["web", "mobile", "supabase", "screenshots", "textures", "ai", "pgns", "bindings/web", "bindings/react-native"]
+
+[tool.scikit-build.cmake.define]
+CHESS_BUILD_PYTHON = "ON"
+
+[tool.pytest.ini_options]
+testpaths = ["bindings/python/tests"]

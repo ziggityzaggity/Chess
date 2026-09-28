@@ -1,0 +1,80 @@
+name: Engine tests (native, Python, CUDA build)
+
+# Guards the engine used for ML training:
+#   * native  — perft, game rules, the ML-facing APIs (SAN/PGN, encoding,
+#               batch move generation) and the CUDA kernels executed by a CPU
+#               emulator (core/gpu/cuda_emulation.hpp);
+#   * python  — builds the chess_engine module with pip and runs its tests,
+#               including a cross-check against python-chess;
+#   * cuda    — compiles the CUDA kernels with nvcc. Hosted runners have no
+#               GPU, so this proves the device code builds; the notebook runs
+#               chess_engine.gpu.self_test() on a real GPU.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "core/**"
+      - "bindings/python/**"
+      - "CMakeLists.txt"
+      - "pyproject.toml"
+      - "ai/data/**"
+      - ".github/workflows/python-engine.yml"
+  pull_request:
+    paths:
+      - "core/**"
+      - "bindings/python/**"
+      - "CMakeLists.txt"
+      - "pyproject.toml"
+      - "ai/data/**"
+      - ".github/workflows/python-engine.yml"
+  workflow_dispatch:
+
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure and build
+        run: |
+          cmake -S . -B build -DCHESS_CUDA=OFF
+          cmake --build build -j
+      - name: C++ tests
+        run: ctest --test-dir build --output-on-failure
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install PyTorch (CPU build)
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Build and install chess_engine
+        run: pip install -v ".[test]"
+      - name: Tests
+        run: pytest -q bindings/python/tests
+
+  cuda:
+    runs-on: ubuntu-latest
+    container: nvidia/cuda:12.6.3-devel-ubuntu24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends cmake ninja-build g++ python3-dev python3-venv
+          python3 -m venv /opt/venv
+          /opt/venv/bin/pip install pybind11 numpy
+      - name: Build with CUDA kernels
+        run: |
+          cmake -S . -B build -G Ninja -DCHESS_CUDA=ON -DCHESS_BUILD_PYTHON=ON \
+                -DCMAKE_CUDA_ARCHITECTURES="75;86" \
+                -DPython_EXECUTABLE=/opt/venv/bin/python \
+                -Dpybind11_DIR="$(/opt/venv/bin/python -m pybind11 --cmakedir)"
+          cmake --build build
+      - name: Import the CUDA-enabled module
+        run: |
+          PYTHONPATH=build/python /opt/venv/bin/python -c \
+            "import chess_engine as ce; assert ce.CUDA_COMPILED; print(ce.cuda_build_info(), '| GPU present:', ce.cuda_available())"
