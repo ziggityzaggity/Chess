@@ -31,3 +31,7 @@ __pycache__/
 
 # Supabase CLI local state
 supabase/.temp/
+
+# ML artefacts written by ai/chess_value_network.ipynb
+ai/models/
+.ipynb_checkpoints/
