@@ -67,7 +67,8 @@ Set `CHESS_PROFILE=gpu|cpu|smoke` to override.
 ## Playing against a trained model
 
 ```sh
-python -m chess_engine.player ai/models/value_net.onnx --color white
+python -m chess_engine.player ai/models/value_net.onnx --color white             # one-ply (as specified)
+python -m chess_engine.player ai/models/value_net.onnx --color white --depth 2   # also weighs replies
 ```
 
 Programmatically:
@@ -82,6 +83,12 @@ game.push_san("e4")
 move = player.choose_move(game, evaluate)                        # ScoredMove: .san, .score, .wdl
 game.push(move.move)
 ```
+
+`depth=1` (the default) plays the legal move whose resulting position the
+network rates best for its colour. `depth=2` scores each move by the position
+after the opponent's best reply. That costs about 35 times the network
+evaluations, still in one batch, and it no longer walks into simple recaptures.
+The notebook measures both.
 
 `model_card.json` documents the input contract: plane order, side-to-move
 perspective, and output order. The same encoding compiles to WASM with the rest of
