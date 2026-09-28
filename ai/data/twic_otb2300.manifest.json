@@ -1,0 +1,51 @@
+{
+  "file": "twic_otb2300.pgn",
+  "games": 10000,
+  "sha256": "862ba85610c20dbb1bfdf5710fbc2ab1be611f0355de476a8a9bd7d5169635ff",
+  "source": "The Week in Chess (https://theweekinchess.com), edited by Mark Crowther",
+  "mirror": "github.com/rozim/ChessData@ed88abd2716da58ee55d42b662455c1c8ebe0776",
+  "issues": [
+    1649,
+    1648,
+    1647,
+    1646,
+    1645,
+    1644,
+    1643,
+    1642,
+    1641,
+    1640,
+    1639,
+    1638,
+    1637,
+    1636,
+    1635
+  ],
+  "date_range": [
+    "2025.05.10",
+    "2026.06.15"
+  ],
+  "filters": {
+    "min_elo_both_players": 2300,
+    "results": [
+      "1-0",
+      "0-1",
+      "1/2-1/2"
+    ],
+    "excluded_event_pattern": "rapid|blitz|bullet|armageddon|blind|simul|exhibition|960|freestyle|fischer random|titled|(?<![\\d-])\\d-\\d(?![\\d-])|online|chess\\.com|lichess|tcec|computer|engine|ccrl|speed|playoff|play-off|tiebreak|tie-break|bughouse|odds|handicap",
+    "standard_start_only": true,
+    "deduplicated_on": "White + Black + movetext"
+  },
+  "counts": {
+    "read": 89165,
+    "rejected": {
+      "a player below 2300": 23523,
+      "missing Elo": 816,
+      "no moves": 5,
+      "not OTB classical": 54815
+    },
+    "duplicates": 6,
+    "kept": 10000
+  },
+  "created": "2026-09-28T21:20:51Z"
+}
