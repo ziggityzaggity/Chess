@@ -1,5 +1,6 @@
 # Welcome to [PyChess](https://www.pychess.app)!
-<img width="3840" height="1787" alt="image" src="https://github.com/user-attachments/assets/8b81f9f1-f0a6-491b-abd6-54d5255353af" />
+<img width="2864" height="1694" alt="image" src="https://github.com/user-attachments/assets/156fd63e-af83-4aa8-9fb0-24f2e5f600c9" />
+
 
 ## Background 
 This is an updated version of my final project for CS50 in 2022. The original version was written 100% in Python using the PyGame module. Now, this project is a full-stack web app that allows users to play chess on their web browser either locally, against another user on the app, or against one of our bots! 
