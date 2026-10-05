@@ -10,7 +10,7 @@ The core chess logic of the games lives in the ```/core/``` directory. This modu
 
 ```/bindings/web/chess_web.cpp``` exposes a TypeScript interface ```/web/src/lib/engine.ts``` for the above module which is compiled to ```/web/public/engine/chessengine.wasm```, which is linked to our React web UI in ```/web/src/app/game/page.tsx```.
 
-User authentication is handled by Supabase using the Resend SMTP to send 6-digit verification codes. User data is stored in a PostgreSQL database on Supabase. Hosting is handled by Vercel and the build is kept up-to-date by the github-actions bot.
+User authentication is handled by Supabase using the Resend SMTP to send 6-digit verification codes or through Google's OAuth. User data is stored in a PostgreSQL database on Supabase. Hosting is handled by Vercel and the build is kept up-to-date by the Github Actions bot.
 
 Many many more features to come!
 
