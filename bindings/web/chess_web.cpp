@@ -14,13 +14,93 @@
 //
 // Squares are 0..63, row-major, row 0 = top (black's back rank) — same as the
 // core. Build flags live in bindings/web/CMakeLists.txt.
+//
+// The bots (web/src/lib/search.ts) search on compact positions: 72-byte
+// chess::Board rows packed in a Uint8Array, as in the Python package.
+//
+//   * game.rootChildren()  — every legal move of the current position with the
+//                            position it leads to (rules, repetition, material).
+//   * expandBoards(bytes)  — the same for a batch of compact positions.
+//   * encodeBoards(bytes)  — network input planes (core/encode.hpp), exactly
+//                            what the value network was trained on.
 
 #include "game.hpp"
+#include "encode.hpp"
+#include <cstring>
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 
 using namespace emscripten;
 using namespace chess;
+
+namespace {
+
+// Copies of C++ buffers as JS typed arrays (the views would dangle).
+template <typename T>
+val toTyped(const char* type, const std::vector<T>& v) {
+    return val::global(type).new_(typed_memory_view(v.size(), v.data()));
+}
+
+std::vector<Board> boardsFromBytes(const val& bytes) {
+    const std::vector<uint8_t> raw = convertJSArrayToNumberVector<uint8_t>(bytes);
+    std::vector<Board> boards(raw.size() / sizeof(Board));
+    if (!boards.empty()) std::memcpy(boards.data(), raw.data(), boards.size() * sizeof(Board));
+    return boards;
+}
+
+// The Greedy bot's evaluation, for the side to move: material (P 1, N 3, B 3,
+// R 5, Q 9) minus the opponent's, and 0.4 worse when in check.
+float materialScore(const Board& b) {
+    static constexpr float VALUE[7] = {0, 1, 3, 3, 5, 9, 0};
+    const int us = sideToMove(b) == WHITE ? 0 : 1;
+    float score = 0;
+    for (int i = 0; i < 64; ++i) {
+        const uint8_t p = b.sq[i];
+        if (!validPiece(p)) continue;
+        score += ((p >> 3) == us ? 1.0f : -1.0f) * VALUE[p & 7];
+    }
+    return b.inCheck() ? score - 0.4f : score;
+}
+
+// Children of each board: {boards (72 bytes each), status (Status codes, for the
+// side to move in the child), material (materialScore of the child),
+// offsets (board i's children are offsets[i]..offsets[i + 1])}.
+val expandBoards(const val& bytes) {
+    const std::vector<Board> boards = boardsFromBytes(bytes);
+    std::vector<Board> children;
+    std::vector<uint8_t> status;
+    std::vector<float> material;
+    std::vector<int32_t> offsets{0};
+    children.reserve(boards.size() * 40);
+    for (const Board& b : boards) {
+        b.forEachLegal([&](const Move&, const Board& child) {
+            uint8_t st;
+            countAndStatus(child, &st);
+            children.push_back(child);
+            status.push_back(st);
+            material.push_back(materialScore(child));
+        });
+        offsets.push_back((int32_t)children.size());
+    }
+    std::vector<uint8_t> raw(children.size() * sizeof(Board));
+    if (!raw.empty()) std::memcpy(raw.data(), children.data(), raw.size());
+    val r = val::object();
+    r.set("boards", toTyped("Uint8Array", raw));
+    r.set("status", toTyped("Uint8Array", status));
+    r.set("material", toTyped("Float32Array", material));
+    r.set("offsets", toTyped("Int32Array", offsets));
+    return r;
+}
+
+// Network input for each board: NUM_PLANES x 8 x 8 floats per board.
+val encodeBoards(const val& bytes) {
+    const std::vector<Board> boards = boardsFromBytes(bytes);
+    std::vector<float> out(boards.size() * ENCODED_FLOATS);
+    for (size_t i = 0; i < boards.size(); ++i) encodeBoard(boards[i], &out[i * ENCODED_FLOATS]);
+    return toTyped("Float32Array", out);
+}
+
+} // namespace
 
 class WebGame {
 public:
@@ -125,6 +205,46 @@ public:
         return a;
     }
 
+    // --- search -------------------------------------------------------------
+    // The current position as one compact board (72 bytes).
+    val compactBoard() const {
+        std::vector<uint8_t> raw(sizeof(Board));
+        std::memcpy(raw.data(), &game_.board(), sizeof(Board));
+        return toTyped("Uint8Array", raw);
+    }
+
+    // Every legal move with the position it leads to: {moves (UCI strings),
+    // boards, status, material} as in expandBoards, plus repetition[i] = 1 if
+    // move i repeats a position for the third time (a draw the compact boards
+    // cannot see). The game itself is not modified.
+    val rootChildren() const {
+        Game probe = game_;
+        val moves = val::array();
+        std::vector<Board> children;
+        std::vector<uint8_t> status, repetition;
+        std::vector<float> material;
+        game_.board().forEachLegal([&](const Move& m, const Board& child) {
+            uint8_t st;
+            countAndStatus(child, &st);
+            probe.push(m);
+            repetition.push_back(probe.isThreefold() ? 1 : 0);
+            probe.undo();
+            moves.set((int)children.size(), m.uci());
+            children.push_back(child);
+            status.push_back(st);
+            material.push_back(materialScore(child));
+        });
+        std::vector<uint8_t> raw(children.size() * sizeof(Board));
+        if (!raw.empty()) std::memcpy(raw.data(), children.data(), raw.size());
+        val r = val::object();
+        r.set("moves", moves);
+        r.set("boards", toTyped("Uint8Array", raw));
+        r.set("status", toTyped("Uint8Array", status));
+        r.set("material", toTyped("Float32Array", material));
+        r.set("repetition", toTyped("Uint8Array", repetition));
+        return r;
+    }
+
 private:
     Game game_;
 };
@@ -154,5 +274,11 @@ EMSCRIPTEN_BINDINGS(chess_module) {
         .function("drawReason",  &WebGame::drawReason)
         .function("pgn",         &WebGame::pgn)
         .function("legalUci",    &WebGame::legalUci)
+        .function("compactBoard", &WebGame::compactBoard)
+        .function("rootChildren", &WebGame::rootChildren)
         ;
+    function("expandBoards", &expandBoards);
+    function("encodeBoards", &encodeBoards);
+    constant("BOARD_BYTES", BOARD_BYTES);
+    constant("NUM_PLANES", NUM_PLANES);
 }
