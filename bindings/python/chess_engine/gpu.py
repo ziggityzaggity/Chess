@@ -22,6 +22,7 @@ boards to the host and back.
 
 from __future__ import annotations
 
+import functools
 import warnings
 
 import torch
@@ -43,8 +44,9 @@ BOARD_BYTES = _core.BOARD_BYTES
 _warned = False
 
 
+@functools.lru_cache(maxsize=None)
 def kernels_available() -> bool:
-    """True if the engine was built with CUDA and a GPU is visible."""
+    """True if the engine was built with CUDA and a GPU is visible (checked once)."""
     return bool(_core.cuda_available())
 
 

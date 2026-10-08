@@ -12,11 +12,13 @@ Positions the rules already decide skip the network: a mating move scores 1;
 a move into stalemate, insufficient material, the 50-move rule or threefold
 repetition scores 0.5.
 
-Optionally (depth=2) the player also looks at the opponent's replies: a move
-is then scored by the position after the reply the network rates worst for
-us. This costs ~35x more network evaluations (batched), and it catches what one
-ply cannot see: a piece moved to an attacked square, or a capture that is
-recaptured.
+Optionally the player looks further ahead (depth 2 or 3 plies). The search
+is plain minimax over expected scores ("negamax"): the value of a position
+for the side to move is the best, over its moves, of 1 - (value of the
+resulting position for the opponent), and positions at the search horizon are
+valued by the network. Each extra ply costs ~35x more network evaluations,
+all batched, and catches what one ply cannot see: a piece moved to an
+attacked square, a capture that is recaptured, a mate in two.
 
 Entry points:
     choose_move(game, evaluator)       one game, e.g. against a human
@@ -66,32 +68,48 @@ class ScoredMove:
     terminal: Optional[str]                        # why the rules decide it, if they do
 
 
-def _after_best_reply(children: np.ndarray, evaluate: Evaluator) -> tuple[np.ndarray, np.ndarray]:
-    """For positions with the opponent to move (each with a legal move): our
-    expected score after the reply the network rates worst for us, and our
-    W/D/L there (NaN when the rules decide that reply)."""
-    kids, _, _, offsets = _core.expand_boards(children)
-    _, status = _core.count_legal(kids)
-    ours = np.full(len(kids), 0.5)                 # rule draws
-    wdl = np.full((len(kids), 3), np.nan)
-    ours[status == int(Status.CHECKMATE)] = 0.0    # the reply mates us
-    live = status == int(Status.ONGOING)
-    if live.any():
-        p = np.asarray(evaluate(_core.encode_boards(kids[live])), dtype=np.float64)   # we move again
-        ours[live] = p[:, WIN] + 0.5 * p[:, DRAW]
-        wdl[live] = p
-    worst = np.array([lo + np.argmin(ours[lo:hi]) for lo, hi in zip(offsets[:-1], offsets[1:])])
-    return ours[worst], wdl[worst]
+MAX_DEPTH = 3
+
+
+def _check_depth(depth: int) -> None:
+    if not 1 <= depth <= MAX_DEPTH:
+        raise ValueError(f"depth must be between 1 and {MAX_DEPTH}")
+
+
+def position_values(boards: np.ndarray, evaluate: Evaluator, plies: int) -> np.ndarray:
+    """Expected score (0..1) for the side to move in each of `boards`, after
+    searching `plies` more plies (0 = ask the network directly).
+
+    Positions the rules decide are valued without the network: checkmated 0,
+    any rule draw 0.5. The tree is expanded one level at a time, so every
+    network call is one batch.
+    """
+    values = np.full(len(boards), 0.5)
+    if len(boards) == 0:
+        return values
+    _, status = _core.count_legal(boards)
+    values[status == int(Status.CHECKMATE)] = 0.0
+    live = np.flatnonzero(status == int(Status.ONGOING))
+    if len(live) == 0:
+        return values
+    if plies == 0:
+        p = np.asarray(evaluate(_core.encode_boards(boards[live])), dtype=np.float64)
+        values[live] = p[:, WIN] + 0.5 * p[:, DRAW]
+    else:
+        kids, _, _, offsets = _core.expand_boards(boards[live])     # every live board has a move
+        kid_values = position_values(kids, evaluate, plies - 1)
+        values[live] = np.maximum.reduceat(1.0 - kid_values, offsets[:-1])
+    return values
 
 
 def score_moves(game: Game, evaluate: Evaluator, depth: int = 1) -> list[ScoredMove]:
     """Every legal move of `game` with the mover's expected score.
 
-    depth=1 scores the position after the move; depth=2 the position after
-    the opponent's best reply to it (see the module docstring).
+    depth=1 scores the position after the move; depth 2 and 3 search the
+    replies too (see the module docstring). The W/D/L breakdown is reported
+    for depth 1 only (deeper scores combine many positions).
     """
-    if depth not in (1, 2):
-        raise ValueError("depth must be 1 or 2")
+    _check_depth(depth)
     boards, moves = game.children()
     if not moves:
         return []
@@ -122,10 +140,8 @@ def score_moves(game: Game, evaluate: Evaluator, depth: int = 1) -> list[ScoredM
             wdl[i] = (float(l), float(d), float(w))  # ... flipped to the mover's
             scores[i] = l + 0.5 * d
     elif to_eval:
-        after, after_wdl = _after_best_reply(boards[to_eval], evaluate)
-        for k, i in enumerate(to_eval):
-            scores[i] = after[k]
-            wdl[i] = None if np.isnan(after_wdl[k]).any() else tuple(float(v) for v in after_wdl[k])
+        opponent = position_values(boards[to_eval], evaluate, depth - 1)
+        scores[to_eval] = 1.0 - opponent
     return [ScoredMove(m, m.uci(), game.san(m), float(scores[i]), wdl[i], terminal[i])
             for i, m in enumerate(moves)]
 
@@ -139,7 +155,7 @@ def choose_move(game: Game, evaluate: Evaluator, temperature: float = 0.0,
     mate actually ends the game. Otherwise temperature 0 plays the best move
     (ties broken at random if `rng` is given) and temperature > 0 samples moves
     with probability proportional to exp(score / temperature), for variety.
-    depth=2 adds the opponent's best reply to the lookahead.
+    depth (1-3) is how many plies to look ahead.
     """
     scored = score_moves(game, evaluate, depth)
     if not scored:
@@ -217,10 +233,38 @@ def _network_probs(model, boards, eval_batch: int):
     from . import gpu
 
     probs = torch.empty((boards.shape[0], 3), dtype=torch.float32, device=boards.device)
-    with torch.inference_mode():
+    use_amp = boards.is_cuda                               # half precision: ~2x faster, same choices
+    with torch.inference_mode(), torch.autocast("cuda", dtype=torch.float16, enabled=use_amp):
         for i in range(0, boards.shape[0], eval_batch):
             probs[i:i + eval_batch] = torch.softmax(model(gpu.encode(boards[i:i + eval_batch])).float(), dim=-1)
     return probs
+
+
+def position_values_batched(boards, model, plies: int, eval_batch: int = 32768):
+    """position_values() for a tensor of boards, entirely on boards.device:
+    the CUDA kernels expand each level and the network evaluates the horizon."""
+    import torch
+
+    from . import gpu
+
+    values = torch.full((boards.shape[0],), 0.5, device=boards.device)
+    if boards.shape[0] == 0:
+        return values
+    _, status = gpu.count_legal(boards)
+    st = status.to(torch.int64)
+    values[st == int(Status.CHECKMATE)] = 0.0
+    live = (st == int(Status.ONGOING)).nonzero().squeeze(1)
+    if len(live) == 0:
+        return values
+    if plies == 0:
+        p = _network_probs(model, boards[live], eval_batch)
+        values[live] = p[:, WIN] + 0.5 * p[:, DRAW]
+    else:
+        kids, _, kparent, _ = gpu.expand(boards[live])
+        kid_values = position_values_batched(kids, model, plies - 1, eval_batch)
+        values[live] = torch.full((len(live),), -math.inf, device=boards.device).scatter_reduce(
+            0, kparent, 1.0 - kid_values, "amax")
+    return values
 
 
 def select_moves(boards, model, temperature: float = 0.0, generator=None, eval_batch: int = 32768,
@@ -232,8 +276,8 @@ def select_moves(boards, model, temperature: float = 0.0, generator=None, eval_b
     Returns a dict of tensors, one entry per game: "child" (G, 72) the
     position after the chosen move, "move" (G, 4), "score" (G,) the mover's
     expected score, "status" (G,) the child's Status. Repetition draws are not
-    detected here (boards carry no history). depth=2 scores each move by the
-    opponent's best reply to it.
+    detected here (boards carry no history). depth (1-3) is how many plies
+    to look ahead.
     """
     import torch
 
@@ -243,29 +287,10 @@ def select_moves(boards, model, temperature: float = 0.0, generator=None, eval_b
     g, m = boards.shape[0], children.shape[0]
     if bool((offsets[1:] == offsets[:-1]).any()):
         raise ValueError("select_moves: a position has no legal moves (game over)")
-    if depth not in (1, 2):
-        raise ValueError("depth must be 1 or 2")
+    _check_depth(depth)
     _, status = gpu.count_legal(children)
     st = status.to(torch.int64)
-    if depth == 1:
-        probs = _network_probs(model, children, eval_batch)
-        score = probs[:, LOSS] + 0.5 * probs[:, DRAW]       # opponent's loss is our win
-    else:
-        score = torch.full((m,), 0.5, device=children.device)
-        live = (st == int(Status.ONGOING)).nonzero().squeeze(1)
-        if len(live):
-            kids, _, kparent, _ = gpu.expand(children[live])     # our move again
-            _, kstatus = gpu.count_legal(kids)
-            kst = kstatus.to(torch.int64)
-            ours = torch.where(kst == int(Status.CHECKMATE), 0.0, 0.5).to(torch.float32)
-            klive = (kst == int(Status.ONGOING)).nonzero().squeeze(1)
-            if len(klive):
-                p = _network_probs(model, kids[klive], eval_batch)
-                ours[klive] = p[:, WIN] + 0.5 * p[:, DRAW]
-            score[live] = torch.full((len(live),), math.inf, device=score.device).scatter_reduce(
-                0, kparent, ours, "amin")
-    score = torch.where(st == int(Status.CHECKMATE), torch.ones_like(score),
-                        torch.where(st != int(Status.ONGOING), torch.full_like(score, 0.5), score))
+    score = 1.0 - position_values_batched(children, model, depth - 1, eval_batch)   # rule results included
     key = score
     if temperature > 0:                                       # Gumbel-max = softmax sampling
         u = torch.rand(m, device=score.device, generator=generator).clamp_(1e-12, 1.0)
@@ -297,8 +322,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("model", help="exported model: .onnx (needs onnxruntime) or .pt2 (torch.export)")
     ap.add_argument("--color", choices=("white", "black"), default="white", help="your colour")
     ap.add_argument("--temperature", type=float, default=0.0)
-    ap.add_argument("--depth", type=int, choices=(1, 2), default=1,
-                    help="1: best position after our move; 2: also consider the reply")
+    ap.add_argument("--depth", type=int, choices=(1, 2, 3), default=1,
+                    help="plies to look ahead (1: the position after our move)")
     ap.add_argument("--fen", default=None, help="start position")
     args = ap.parse_args(argv)
 
@@ -320,7 +345,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 print("  illegal or unreadable move")
             continue
         choice = choose_move(game, evaluate, args.temperature, rng, depth=args.depth)
-        detail = choice.terminal or ("W/D/L %.2f/%.2f/%.2f" % choice.wdl if choice.wdl else "rule-decided reply")
+        detail = choice.terminal or ("W/D/L %.2f/%.2f/%.2f" % choice.wdl if choice.wdl else f"depth {args.depth}")
         print(f"engine plays {choice.san}   (expected score {choice.score:.2f}; {detail})")
         game.push(choice.move)
     print()

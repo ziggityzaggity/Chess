@@ -198,7 +198,7 @@ def test_depth_two_sees_the_recapture():
     assert player.choose_move(ce.Game("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1"), evaluate, depth=2).san == "Rd8#"
     assert g.fen() == POISONED
     with pytest.raises(ValueError):
-        player.score_moves(g, evaluate, depth=3)
+        player.score_moves(g, evaluate, depth=4)
 
 
 def test_batched_depth_two_matches_single_game():
@@ -210,3 +210,58 @@ def test_batched_depth_two_matches_single_game():
         scored = {s.uci: s.score for s in player.score_moves(ce.Game(fen), evaluate, depth=2)}
         assert abs(scored[mv] - max(scored.values())) < 1e-5 and abs(score - scored[mv]) < 1e-5
     assert ce.moves_to_uci(out["move"].numpy())[1:] == ["d1d8", "e4d5"]
+
+
+def _brute_force_value(game, evaluate, plies):
+    """Reference negamax with plain Game push/undo: expected score for the side to move."""
+    if game.is_checkmate():
+        return 0.0
+    if game.is_stalemate() or game.is_insufficient_material() or game.is_fifty_move():
+        return 0.5
+    if plies == 0:
+        w, d, _ = evaluate(game.encode()[None])[0]
+        return float(w + 0.5 * d)
+    best = -1.0
+    for m in game.legal_moves():
+        game.push(m)
+        best = max(best, 1.0 - _brute_force_value(game, evaluate, plies - 1))
+        game.undo()
+    return best
+
+
+MATE_IN_TWO = "3R4/5K1k/8/8/8/8/8/8 w - - 0 1"
+
+
+@pytest.mark.parametrize("depth", [1, 2, 3])
+def test_search_matches_brute_force(depth):
+    evaluate = player.TorchEvaluator(MaterialNet(scale=0.5), device="cpu")
+    for fen in (POISONED, MATE_IN_TWO):
+        g = ce.Game(fen)
+        for s in player.score_moves(g, evaluate, depth=depth):
+            g.push(s.move)
+            expected = 1.0 - _brute_force_value(g, evaluate, depth - 1)
+            g.undo()
+            assert abs(s.score - expected) < 1e-6, (fen, s.san, depth)
+
+
+def test_depth_three_finds_mate_in_two():
+    evaluate = player.TorchEvaluator(MaterialNet(scale=0.5), device="cpu")
+    g = ce.Game(MATE_IN_TWO)
+    best = player.choose_move(g, evaluate, depth=3)
+    assert best.score == 1.0
+    g.push(best.move)                       # every reply now allows mate in one
+    for reply in g.legal_moves():
+        g.push(reply)
+        assert any((g.push(m), g.is_checkmate(), g.undo())[1] for m in g.legal_moves())
+        g.undo()
+
+
+@pytest.mark.parametrize("depth", [2, 3])
+def test_batched_search_matches_single_game(depth):
+    model = MaterialNet(scale=0.5)
+    fens = [POISONED, MATE_IN_TWO, "4k3/8/8/3q4/4P3/8/8/4K3 w - - 0 1"]
+    out = player.select_moves(torch.from_numpy(ce.boards_from_fens(fens)), model, depth=depth)
+    evaluate = player.TorchEvaluator(model, device="cpu")
+    for fen, mv, score in zip(fens, ce.moves_to_uci(out["move"].numpy()), out["score"].tolist()):
+        scored = {s.uci: s.score for s in player.score_moves(ce.Game(fen), evaluate, depth=depth)}
+        assert abs(scored[mv] - max(scored.values())) < 1e-5 and abs(score - scored[mv]) < 1e-5
