@@ -117,12 +117,13 @@ counts, status = gpu.count_legal(b)
 gpu.self_test("cuda")               # GPU vs CPU check + perft suite
 
 # Choosing moves with a trained value network (see ai/)
-best = player.choose_move(g, player.TorchEvaluator(model))
+best = player.choose_move(g, player.TorchEvaluator(model))            # one ply
+best = player.choose_move(g, player.TorchEvaluator(model), depth=3)   # negamax, 3 plies
 best.san, best.score                # expected score for the side to move
 ```
 
-`python -m chess_engine.player model.onnx` plays against an exported model in
-the terminal.
+`python -m chess_engine.player model.onnx --depth 2` plays against an exported
+model in the terminal (`--depth` 1–3).
 
 ## Tests
 

@@ -19,6 +19,7 @@ on:
       - "CMakeLists.txt"
       - "pyproject.toml"
       - "ai/data/**"
+      - "ai/*.py"
       - ".github/workflows/python-engine.yml"
   pull_request:
     paths:
@@ -27,6 +28,7 @@ on:
       - "CMakeLists.txt"
       - "pyproject.toml"
       - "ai/data/**"
+      - "ai/*.py"
       - ".github/workflows/python-engine.yml"
   workflow_dispatch:
 
@@ -53,8 +55,10 @@ jobs:
         run: pip install torch --index-url https://download.pytorch.org/whl/cpu
       - name: Build and install chess_engine
         run: pip install -v ".[test]"
-      - name: Tests (engine bindings + training-data selection)
-        run: pytest -q bindings/python/tests ai/data
+      - name: Install the notebook's training dependencies
+        run: pip install pandas scikit-learn onnx onnxscript onnxruntime
+      - name: Tests (engine bindings, training-data selection, training module)
+        run: pytest -q bindings/python/tests ai/data ai/test_value_training.py
 
   cuda:
     runs-on: ubuntu-latest
