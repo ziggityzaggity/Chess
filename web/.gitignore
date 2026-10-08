@@ -31,3 +31,6 @@ next-env.d.ts
 # *.wasm rule too.
 !/public/engine/
 !/public/engine/chessengine.wasm
+
+# onnxruntime-web runtime, staged from node_modules by scripts/copy-ort.mjs
+/public/ort/
