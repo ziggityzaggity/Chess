@@ -16,6 +16,8 @@ The same core is exposed to Python through pybind11 in ```/bindings/python/``` (
 
 ```/ai/``` holds the machine-learning workflow for the neural-network opponents. It has 10,000 curated master games, a notebook (```/ai/chess_value_network.ipynb```) and its training module (```/ai/value_training.py```). The notebook trains PyTorch CNNs in three sizes to predict who wins from any position, with checkpoints after every epoch. The bots play by searching 1–3 moves ahead and choosing the move the network rates best. In the web app they run in the browser with onnxruntime-web, alongside the Jester (random) and Greedy (material) bots.
 
+Future developments include new different architectures for these chess-playing agents, including but not limited to graph neural networks and deep q learning networks.
+
 User authentication is handled by Supabase using the Resend SMTP to send 6-digit verification codes. User data is stored in a PostgreSQL database on Supabase. Hosting is handled by Vercel and the build is kept up-to-date by the github-actions bot.
 
 Many many more features to come!
