@@ -136,7 +136,7 @@ notebook later finishes, its export rewrites the manifest with every trained siz
 The web app runs the networks in the browser with `onnxruntime-web`. The same
 encoding is compiled to WASM with the rest of the engine, and its search
 (`web/src/lib/search.ts`) uses alpha-beta pruning. It offers exactly the models
-listed in `web/public/models/manifest.json`, which ships empty. To deploy, copy
+listed in `web/public/models/manifest.json` (currently the small model). To deploy, copy
 `manifest.json` and the chosen `value_net_<size>.onnx` files from `models/` into
 `web/public/models/`. Remove any entries from the manifest whose `.onnx` file you
 did not copy.

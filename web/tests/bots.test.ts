@@ -5,7 +5,7 @@
 // outputs and the WASM encoding must match what PyTorch and the Python
 // package computed for the same positions.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -235,8 +235,27 @@ describe("bot settings", () => {
     expect(cnnModel(manifest, "large")).toBeUndefined();
   });
 
-  it("ships with no models deployed", () => {
+  it("deploys only models that exist and use the app's encoding", () => {
     const shipped = JSON.parse(readFileSync(resolve(__dirname, "../public/models/manifest.json"), "utf8"));
-    expect(shipped).toEqual({ version: 1, encoding: ENCODING, models: [] });
+    expect(shipped.encoding).toBe(ENCODING);
+    for (const model of shipped.models) {
+      expect(model.encoding).toBe(ENCODING);
+      expect(existsSync(resolve(__dirname, "../public/models", model.file))).toBe(true);
+    }
+  });
+
+  it.each(["small", "medium", "large"] as const)("the deployed %s model plays legal moves", async (size) => {
+    const shipped = JSON.parse(readFileSync(resolve(__dirname, "../public/models/manifest.json"), "utf8"));
+    const model = cnnModel(shipped, size);
+    if (!model) return; // not deployed
+    const evaluator = await OnnxEvaluator.load(engine, readFileSync(resolve(__dirname, "../public/models", model.file)), {
+      wasmPaths: resolve(__dirname, "../node_modules/onnxruntime-web/dist") + "/",
+    });
+    game.setFen("rn1q1rk1/1p2bppp/p2pbn2/4p3/4P3/1NN1BP2/PPPQ2PP/2KR1B1R b - - 4 10");
+    const result = await searchMove(engine, game, { depth: 2, evaluator: networkLeafEvaluator(evaluator) });
+    expect(game.legalUci()).toContain(result!.move);
+    // Hanging queen: any sensible value network takes it.
+    game.setFen("rnb1kbnr/pppp1ppp/8/4p1q1/4P3/3P4/PPP2PPP/RNBQKBNR w KQkq - 1 3");
+    expect((await searchMove(engine, game, { depth: 1, evaluator: networkLeafEvaluator(evaluator) }))!.move).toBe("c1g5");
   });
 });

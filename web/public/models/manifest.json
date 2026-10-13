@@ -1,5 +1,24 @@
 {
   "version": 1,
   "encoding": "pychess-19plane-stm-v1",
-  "models": []
+  "models": [
+    {
+      "id": "cnn-small",
+      "family": "convolutional",
+      "size": "small",
+      "file": "value_net_small.onnx",
+      "blocks": 3,
+      "channels": 32,
+      "parameters": 324963,
+      "input": "planes",
+      "output": "wdl_logits",
+      "encoding": "pychess-19plane-stm-v1",
+      "label": "Convolutional (small)",
+      "val_log_loss": 1.0109,
+      "best_epoch": 2,
+      "epochs_run": 6,
+      "training_finished": true,
+      "exported_from": "checkpoint"
+    }
+  ]
 }
