@@ -144,6 +144,104 @@ inline std::string toSan(const Board& b, const Move& m) {
 }
 
 // ----------------------------------------------------------------------------
+// SAN parsing — the inverse of toSan(), for reading PGN game records.
+// Resolves "Nf3", "exd6", "R1a3", "Qh4xe1#", "e8=Q+", "O-O-O" to the unique
+// matching legal move in `b`. Lenient in the ways real PGN files are: check /
+// mate marks and annotation glyphs (!, ?) are ignored, "0-0" is accepted for
+// castling, the capture 'x' is optional, a promotion may omit '=' and its
+// piece letter may be lower case, and long-algebraic "Ng1-f3" works too.
+// On failure returns false and, if `err` is given, says why.
+// ----------------------------------------------------------------------------
+inline bool parseSan(const Board& b, const std::string& sanIn, Move& out,
+                     std::string* err = nullptr) {
+    auto fail = [&](const char* why) {
+        if (err) *err = std::string(why) + ": '" + sanIn + "'";
+        return false;
+    };
+    std::string s = sanIn;
+    while (!s.empty() && (s.back() == '+' || s.back() == '#' ||
+                          s.back() == '!' || s.back() == '?'))
+        s.pop_back();
+    if (s.size() >= 4 && s.compare(s.size() - 4, 4, "e.p.") == 0) s.resize(s.size() - 4);
+    if (s.empty()) return fail("empty move");
+
+    MoveList legal; b.generateLegal(legal);
+
+    // Castling.
+    if (s == "O-O" || s == "0-0" || s == "O-O-O" || s == "0-0-0") {
+        const uint8_t flag = (s.size() == 3) ? F_CASTLE_K : F_CASTLE_Q;
+        for (const Move& m : legal) if (m.flag == flag) { out = m; return true; }
+        return fail("castling is not legal here");
+    }
+
+    // Moving piece: an upper-case letter, or none for a pawn.
+    PType piece = PAWN;
+    size_t i = 0;
+    switch (s[0]) {
+        case 'N': piece = KNIGHT; i = 1; break;
+        case 'B': piece = BISHOP; i = 1; break;
+        case 'R': piece = ROOK;   i = 1; break;
+        case 'Q': piece = QUEEN;  i = 1; break;
+        case 'K': piece = KING;   i = 1; break;
+        case 'P': piece = PAWN;   i = 1; break;
+        default: break;
+    }
+
+    // Promotion suffix: "=Q", or a trailing piece letter after the rank.
+    PType promo = NO_TYPE;
+    auto promoType = [](char c) -> PType {
+        switch (std::toupper(static_cast<unsigned char>(c))) {
+            case 'Q': return QUEEN; case 'R': return ROOK;
+            case 'B': return BISHOP; case 'N': return KNIGHT;
+            default: return NO_TYPE;
+        }
+    };
+    size_t eq = s.find('=');
+    if (eq != std::string::npos) {
+        if (eq + 1 >= s.size() || (promo = promoType(s[eq + 1])) == NO_TYPE)
+            return fail("bad promotion piece");
+        s.resize(eq);
+    } else if (piece == PAWN && s.size() >= 3 && promoType(s.back()) != NO_TYPE &&
+               (s[s.size() - 2] == '1' || s[s.size() - 2] == '8')) {
+        promo = promoType(s.back());
+        s.pop_back();
+    }
+
+    // What remains is [from-file][from-rank][x|-]to-square.
+    std::string body;
+    for (size_t k = i; k < s.size(); ++k)
+        if (s[k] != 'x' && s[k] != '-' && s[k] != ':') body += s[k];
+    if (body.size() < 2) return fail("missing destination square");
+    const int to = squareFromName(body.substr(body.size() - 2));
+    if (to < 0) return fail("bad destination square");
+    int fromFile = -1, fromRank = -1;   // rank as a board row
+    for (size_t k = 0; k + 2 < body.size(); ++k) {
+        const char c = body[k];
+        if (c >= 'a' && c <= 'h')      fromFile = c - 'a';
+        else if (c >= '1' && c <= '8') fromRank = 8 - (c - '0');
+        else return fail("bad disambiguation");
+    }
+
+    int matches = 0;
+    for (const Move& m : legal) {
+        if (m.to != to || pieceType(b.sq[m.from]) != piece) continue;
+        if (fromFile >= 0 && colOf(m.from) != fromFile) continue;
+        if (fromRank >= 0 && rowOf(m.from) != fromRank) continue;
+        const bool isPromo = (m.flag == F_PROMO || m.flag == F_PROMO_CAPTURE);
+        if (isPromo) {
+            // A promotion written without a piece means a queen.
+            if (m.promo != (promo == NO_TYPE ? QUEEN : promo)) continue;
+        } else if (promo != NO_TYPE) {
+            continue;
+        }
+        out = m;
+        ++matches;
+    }
+    if (matches == 1) return true;
+    return fail(matches == 0 ? "no legal move matches" : "ambiguous move");
+}
+
+// ----------------------------------------------------------------------------
 // Game
 // ----------------------------------------------------------------------------
 class Game {
@@ -214,33 +312,10 @@ public:
         for (uint64_t h : repetition_) if (h == k) ++n;
         return n >= 3;
     }
-    // A "dead position" in which no sequence of legal moves can deliver mate,
-    // so the game is an automatic draw. This must stay strict: it may never
-    // flag a position where mate is still forcible — notably K+B+N vs K, which
-    // is a known win, and K+N+N vs K, where mate remains possible.
-    bool isInsufficientMaterial() const {
-        int knights = 0, bishops = 0;
-        bool bishopLight = false, bishopDark = false;
-        for (int s = 0; s < NSQ; ++s) {
-            uint8_t p = board_.sq[s];
-            if (!p) continue;
-            switch (pieceType(p)) {
-                case KING: break;
-                case BISHOP:
-                    ++bishops;
-                    ((rowOf(s) + colOf(s)) & 1 ? bishopDark : bishopLight) = true;
-                    break;
-                case KNIGHT: ++knights; break;
-                default: return false;   // pawn / rook / queen -> mate possible
-            }
-        }
-        // No knights: any number of bishops that all sit on one colour can
-        // never mate. Covers K vs K, K+B vs K, and same-colour K+B vs K+B.
-        if (knights == 0) return !(bishopLight && bishopDark);
-        // A lone knight cannot mate. A knight alongside any other minor
-        // (K+B+N, K+N+N) can, so those are not dead positions.
-        return knights == 1 && bishops == 0;
-    }
+    // A "dead position" in which no sequence of legal moves can deliver mate.
+    // The rule lives on Board (Board::insufficientMaterial) so batch and GPU
+    // code can apply it too.
+    bool isInsufficientMaterial() const { return board_.insufficientMaterial(); }
     bool isGameOver() const {
         return isCheckmate() || isStalemate() || isFiftyMove() ||
                isThreefold() || isInsufficientMaterial();
@@ -290,6 +365,12 @@ public:
         Move m; return parseUci(uci, m) && push(m);
     }
     std::string san(const Move& m) const { return toSan(board_, m); }
+    bool parseSan(const std::string& san, Move& out, std::string* err = nullptr) const {
+        return chess::parseSan(board_, san, out, err);
+    }
+    bool pushSan(const std::string& san) {
+        Move m; return parseSan(san, m) && push(m);
+    }
 
     // --- history navigation -------------------------------------------------
     bool canUndo() const { return !done_.empty(); }

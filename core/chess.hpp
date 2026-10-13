@@ -21,12 +21,28 @@
 // Differences from objects.py, made for chess-correctness (both flagged here):
 //   * Promotions generate all of Q/R/B/N (objects.py only promoted to queen).
 //   * Castling is forbidden out of check (objects.py only blocked through/into).
+//
+// GPU: everything on the hot path (square helpers, attack detection, move
+// generation, make/unmake) is marked CHESS_HD, which expands to
+// `__host__ __device__` under nvcc and to nothing elsewhere. The same code
+// therefore runs in CUDA kernels (core/gpu/), natively, and in WASM. Device
+// code cannot index host lookup tables, so on the GPU piece offsets come from
+// closed-form constexpr functions (a static_assert proves they match the
+// host's tables). Move generation is written as visitors (forEachPseudo /
+// forEachLegal) so a GPU thread can count or emit moves without
+// materialising a 1 KB pseudo-legal MoveList.
 
 #pragma once
 #include <cstdint>
 #include <string>
 #include <vector>
 #include <type_traits>
+
+#if defined(__CUDACC__)
+#  define CHESS_HD __host__ __device__
+#else
+#  define CHESS_HD
+#endif
 
 namespace chess {
 
@@ -46,18 +62,70 @@ enum PType : uint8_t {
 // A square byte: 0 == empty, else (color << 3) | type.  White pieces are 1..6,
 // black pieces are 9..14.  Keeping a piece in one byte makes the board a flat
 // 64-byte array that is cheap to copy and GPU-friendly.
-inline constexpr uint8_t makePiece(Color c, PType t) {
+CHESS_HD inline constexpr uint8_t makePiece(Color c, PType t) {
     return static_cast<uint8_t>((c << 3) | t);
 }
-inline constexpr bool  isEmpty(uint8_t p)      { return p == 0; }
-inline constexpr Color pieceColor(uint8_t p)   { return static_cast<Color>(p >> 3); }
-inline constexpr PType pieceType(uint8_t p)    { return static_cast<PType>(p & 7); }
-inline constexpr Color opp(Color c)            { return static_cast<Color>(c ^ 1); }
+CHESS_HD inline constexpr bool  isEmpty(uint8_t p)      { return p == 0; }
+CHESS_HD inline constexpr Color pieceColor(uint8_t p)   { return static_cast<Color>(p >> 3); }
+CHESS_HD inline constexpr PType pieceType(uint8_t p)    { return static_cast<PType>(p & 7); }
+CHESS_HD inline constexpr Color opp(Color c)            { return static_cast<Color>(c ^ 1); }
 
-inline constexpr int  sqOf(int r, int c)       { return r * 8 + c; }
-inline constexpr int  rowOf(int s)             { return s >> 3; }
-inline constexpr int  colOf(int s)             { return s & 7; }
-inline constexpr bool onBoard(int r, int c)    { return (unsigned)r < 8 && (unsigned)c < 8; }
+CHESS_HD inline constexpr int  sqOf(int r, int c)       { return r * 8 + c; }
+CHESS_HD inline constexpr int  rowOf(int s)             { return s >> 3; }
+CHESS_HD inline constexpr int  colOf(int s)             { return s & 7; }
+CHESS_HD inline constexpr bool onBoard(int r, int c)    { return (unsigned)r < 8 && (unsigned)c < 8; }
+
+// Piece movement offsets as (row, col) steps. Device code cannot index host
+// arrays, so each step has a closed form for the GPU; the host keeps lookup
+// tables, which are measurably faster in the CPU move generator. The
+// static_assert below proves both give identical steps, in identical order.
+struct Step { int dr, dc; };
+
+namespace detail {
+// {1,2},{1,-2},{-1,2},{-1,-2},{2,1},{2,-1},{-2,1},{-2,-1}
+CHESS_HD constexpr Step knightCalc(int k) {
+    return Step{ ((k & 2) ? -1 : 1) * ((k & 4) ? 2 : 1),
+                 ((k & 1) ? -1 : 1) * ((k & 4) ? 1 : 2) };
+}
+// The 8 neighbours in row-major order, skipping the centre of the 3x3 block.
+CHESS_HD constexpr Step kingCalc(int k) {
+    return Step{ (k + (k >= 4)) / 3 - 1, (k + (k >= 4)) % 3 - 1 };
+}
+// Rook rays {1,0},{-1,0},{0,1},{0,-1}; bishop rays {1,1},{1,-1},{-1,1},{-1,-1}.
+CHESS_HD constexpr Step orthCalc(int k) {
+    return Step{ k == 0 ? 1 : (k == 1 ? -1 : 0), k == 2 ? 1 : (k == 3 ? -1 : 0) };
+}
+CHESS_HD constexpr Step diagCalc(int k) {
+    return Step{ (k & 2) ? -1 : 1, (k & 1) ? -1 : 1 };
+}
+
+inline constexpr Step KNIGHT[8] = {{1,2},{1,-2},{-1,2},{-1,-2},{2,1},{2,-1},{-2,1},{-2,-1}};
+inline constexpr Step KING[8]   = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
+inline constexpr Step ORTH[4]   = {{1,0},{-1,0},{0,1},{0,-1}};
+inline constexpr Step DIAG[4]   = {{1,1},{1,-1},{-1,1},{-1,-1}};
+
+constexpr bool sameStep(Step a, Step b) { return a.dr == b.dr && a.dc == b.dc; }
+constexpr bool closedFormsMatchTables() {
+    for (int k = 0; k < 8; ++k)
+        if (!sameStep(knightCalc(k), KNIGHT[k]) || !sameStep(kingCalc(k), KING[k])) return false;
+    for (int k = 0; k < 4; ++k)
+        if (!sameStep(orthCalc(k), ORTH[k]) || !sameStep(diagCalc(k), DIAG[k])) return false;
+    return true;
+}
+static_assert(closedFormsMatchTables(), "device step formulas must match the host tables");
+} // namespace detail
+
+#if defined(__CUDA_ARCH__)
+CHESS_HD inline Step knightStep(int k) { return detail::knightCalc(k); }
+CHESS_HD inline Step kingStep(int k)   { return detail::kingCalc(k); }
+CHESS_HD inline Step orthStep(int k)   { return detail::orthCalc(k); }
+CHESS_HD inline Step diagStep(int k)   { return detail::diagCalc(k); }
+#else
+CHESS_HD inline Step knightStep(int k) { return detail::KNIGHT[k]; }
+CHESS_HD inline Step kingStep(int k)   { return detail::KING[k]; }
+CHESS_HD inline Step orthStep(int k)   { return detail::ORTH[k]; }
+CHESS_HD inline Step diagStep(int k)   { return detail::DIAG[k]; }
+#endif
 
 // Castling-rights bit flags (stored in Board::castling).
 enum CastleBit : uint8_t { CR_WK = 1, CR_WQ = 2, CR_BK = 4, CR_BQ = 8 };
@@ -76,10 +144,10 @@ struct Move {
     uint8_t flag = F_QUIET;
     uint8_t promo = NO_TYPE;   // promotion target PType, or NO_TYPE
 
-    bool isCapture() const {
+    CHESS_HD bool isCapture() const {
         return flag == F_CAPTURE || flag == F_EN_PASSANT || flag == F_PROMO_CAPTURE;
     }
-    bool operator==(const Move& o) const {
+    CHESS_HD bool operator==(const Move& o) const {
         return from == o.from && to == o.to && flag == o.flag && promo == o.promo;
     }
     // Long-algebraic / UCI-style text, e.g. "e2e4", "e7e8q".
@@ -106,17 +174,17 @@ struct MoveList {
     Move moves[CAP];
     int  count = 0;
 
-    void add(Move m)            { moves[count++] = m; }
-    void add(uint8_t f, uint8_t t, uint8_t fl, uint8_t pr = NO_TYPE) {
+    CHESS_HD void add(Move m)   { moves[count++] = m; }
+    CHESS_HD void add(uint8_t f, uint8_t t, uint8_t fl, uint8_t pr = NO_TYPE) {
         moves[count++] = Move{f, t, fl, pr};
     }
-    void clear()                { count = 0; }
-    int  size() const           { return count; }
-    const Move& operator[](int i) const { return moves[i]; }
-    Move*       begin()         { return moves; }
-    Move*       end()           { return moves + count; }
-    const Move* begin() const   { return moves; }
-    const Move* end() const     { return moves + count; }
+    CHESS_HD void clear()       { count = 0; }
+    CHESS_HD int  size() const  { return count; }
+    CHESS_HD const Move& operator[](int i) const { return moves[i]; }
+    CHESS_HD Move*       begin()       { return moves; }
+    CHESS_HD Move*       end()         { return moves + count; }
+    CHESS_HD const Move* begin() const { return moves; }
+    CHESS_HD const Move* end() const   { return moves + count; }
 };
 
 // Record needed to reverse a makeMove().
@@ -130,22 +198,28 @@ struct Undo {
 
 // ----------------------------------------------------------------------------
 // Board — the entire game state, as Plain-Old-Data.
+// 72 bytes, 8-byte aligned (72 = 9 x 8, so the alignment costs no padding):
+// arrays of Boards can be copied as whole machine words, including by GPU
+// kernels. encode.hpp pins this layout with static_asserts.
 // ----------------------------------------------------------------------------
-struct Board {
+struct alignas(8) Board {
     uint8_t  sq[NSQ];        // 0 == empty, else makePiece(color,type)
     Color    side;           // side to move
     uint8_t  castling;       // CR_* bits
     int8_t   ep;             // en-passant target square, or -1
+    uint8_t  reserved;       // always 0: names the byte that would otherwise be
+                             // padding, so every copy carries a defined value and
+                             // board arrays compare and hash byte for byte
     uint16_t halfmove;       // halfmove clock (50-move rule)
     uint16_t fullmove;       // full-move number
 
     // --- construction -------------------------------------------------------
-    void clear() {
+    CHESS_HD void clear() {
         for (int i = 0; i < NSQ; ++i) sq[i] = 0;
-        side = WHITE; castling = 0; ep = -1; halfmove = 0; fullmove = 1;
+        side = WHITE; castling = 0; ep = -1; reserved = 0; halfmove = 0; fullmove = 1;
     }
 
-    static Board startpos() {
+    CHESS_HD static Board startpos() {
         Board b; b.clear();
         const PType back[8] = {ROOK, KNIGHT, BISHOP, QUEEN, KING, BISHOP, KNIGHT, ROOK};
         for (int c = 0; c < 8; ++c) {
@@ -160,7 +234,7 @@ struct Board {
         return b;
     }
 
-    int findKing(Color c) const {
+    CHESS_HD int findKing(Color c) const {
         uint8_t k = makePiece(c, KING);
         for (int s = 0; s < NSQ; ++s) if (sq[s] == k) return s;
         return -1;
@@ -168,7 +242,7 @@ struct Board {
 
     // --- attack detection ---------------------------------------------------
     // True if square `s` is attacked by any piece of color `by`.
-    bool isAttacked(int s, Color by) const {
+    CHESS_HD bool isAttacked(int s, Color by) const {
         int r = rowOf(s), c = colOf(s);
 
         // Pawns: a white pawn attacks the two squares diagonally above it, so a
@@ -181,22 +255,21 @@ struct Board {
             if (onBoard(r - 1, c + 1) && sq[sqOf(r - 1, c + 1)] == makePiece(BLACK, PAWN)) return true;
         }
 
-        static constexpr int KN[8][2] = {
-            {1,2},{1,-2},{-1,2},{-1,-2},{2,1},{2,-1},{-2,1},{-2,-1}};
-        uint8_t kn = makePiece(by, KNIGHT);
-        for (auto& o : KN)
-            if (onBoard(r + o[0], c + o[1]) && sq[sqOf(r + o[0], c + o[1])] == kn) return true;
+        const uint8_t kn = makePiece(by, KNIGHT);
+        for (int k = 0; k < 8; ++k) {
+            const Step o = knightStep(k);
+            if (onBoard(r + o.dr, c + o.dc) && sq[sqOf(r + o.dr, c + o.dc)] == kn) return true;
+        }
 
-        static constexpr int KG[8][2] = {
-            {-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
-        uint8_t kg = makePiece(by, KING);
-        for (auto& o : KG)
-            if (onBoard(r + o[0], c + o[1]) && sq[sqOf(r + o[0], c + o[1])] == kg) return true;
+        const uint8_t kg = makePiece(by, KING);
+        for (int k = 0; k < 8; ++k) {
+            const Step o = kingStep(k);
+            if (onBoard(r + o.dr, c + o.dc) && sq[sqOf(r + o.dr, c + o.dc)] == kg) return true;
+        }
 
-        static constexpr int ROOK_DIR[4][2]   = {{1,0},{-1,0},{0,1},{0,-1}};
-        static constexpr int BISHOP_DIR[4][2]  = {{1,1},{1,-1},{-1,1},{-1,-1}};
-        for (auto& d : ROOK_DIR) {
-            int rr = r + d[0], cc = c + d[1];
+        for (int k = 0; k < 4; ++k) {
+            const Step d = orthStep(k);
+            int rr = r + d.dr, cc = c + d.dc;
             while (onBoard(rr, cc)) {
                 uint8_t p = sq[sqOf(rr, cc)];
                 if (p) {
@@ -204,11 +277,12 @@ struct Board {
                         (pieceType(p) == ROOK || pieceType(p) == QUEEN)) return true;
                     break;
                 }
-                rr += d[0]; cc += d[1];
+                rr += d.dr; cc += d.dc;
             }
         }
-        for (auto& d : BISHOP_DIR) {
-            int rr = r + d[0], cc = c + d[1];
+        for (int k = 0; k < 4; ++k) {
+            const Step d = diagStep(k);
+            int rr = r + d.dr, cc = c + d.dc;
             while (onBoard(rr, cc)) {
                 uint8_t p = sq[sqOf(rr, cc)];
                 if (p) {
@@ -216,55 +290,136 @@ struct Board {
                         (pieceType(p) == BISHOP || pieceType(p) == QUEEN)) return true;
                     break;
                 }
-                rr += d[0]; cc += d[1];
+                rr += d.dr; cc += d.dc;
             }
         }
         return false;
     }
 
-    bool inCheck(Color c) const { return isAttacked(findKing(c), opp(c)); }
-    bool inCheck() const        { return inCheck(side); }
+    CHESS_HD bool inCheck(Color c) const { return isAttacked(findKing(c), opp(c)); }
+    CHESS_HD bool inCheck() const        { return inCheck(side); }
+
+    // A "dead position" in which no sequence of legal moves can deliver mate,
+    // so the game is an automatic draw. This must stay strict: it may never
+    // flag a position where mate is still forcible — notably K+B+N vs K, which
+    // is a known win, and K+N+N vs K, where mate remains possible.
+    CHESS_HD bool insufficientMaterial() const {
+        int knights = 0, bishops = 0;
+        bool bishopLight = false, bishopDark = false;
+        for (int s = 0; s < NSQ; ++s) {
+            uint8_t p = sq[s];
+            if (!p) continue;
+            switch (pieceType(p)) {
+                case KING: break;
+                case BISHOP:
+                    ++bishops;
+                    ((rowOf(s) + colOf(s)) & 1 ? bishopDark : bishopLight) = true;
+                    break;
+                case KNIGHT: ++knights; break;
+                default: return false;   // pawn / rook / queen -> mate possible
+            }
+        }
+        // No knights: any number of bishops that all sit on one colour can
+        // never mate. Covers K vs K, K+B vs K, and same-colour K+B vs K+B.
+        if (knights == 0) return !(bishopLight && bishopDark);
+        // A lone knight cannot mate. A knight alongside any other minor
+        // (K+B+N, K+N+N) can, so those are not dead positions.
+        return knights == 1 && bishops == 0;
+    }
 
     // --- pseudo-legal move generation --------------------------------------
-    // Generates moves that respect piece movement rules but may leave the mover
-    // in check; generateLegal() filters those out.
-    void generatePseudo(MoveList& out) const {
+    // Visits every move that respects piece movement rules but may leave the
+    // mover in check; forEachLegal() filters those out. `emit(const Move&)` is
+    // called once per move, in a fixed order (by square, then piece pattern).
+    template <class Emit>
+    CHESS_HD void forEachPseudo(Emit&& emit) const {
         const Color me = side, them = opp(side);
         for (int s = 0; s < NSQ; ++s) {
             uint8_t p = sq[s];
             if (!p || pieceColor(p) != me) continue;
             switch (pieceType(p)) {
-                case PAWN:   genPawn(s, me, them, out);   break;
-                case KNIGHT: genKnight(s, me, out);       break;
-                case BISHOP: genSlider(s, me, out, true,  false); break;
-                case ROOK:   genSlider(s, me, out, false, true);  break;
-                case QUEEN:  genSlider(s, me, out, true,  true);  break;
-                case KING:   genKing(s, me, them, out);   break;
+                case PAWN:   genPawn(s, me, them, emit);   break;
+                case KNIGHT: genKnight(s, me, emit);       break;
+                case BISHOP: genSlider(s, me, emit, true,  false); break;
+                case ROOK:   genSlider(s, me, emit, false, true);  break;
+                case QUEEN:  genSlider(s, me, emit, true,  true);  break;
+                case KING:   genKing(s, me, them, emit);   break;
                 default: break;
             }
         }
     }
 
+    CHESS_HD void generatePseudo(MoveList& out) const {
+        forEachPseudo([&](const Move& m) { out.add(m); });
+    }
+
     // --- legal move generation ---------------------------------------------
-    void generateLegal(MoveList& out) const {
+    // Visits every legal move as `visit(move, child)`, where `child` is this
+    // position after the move. Legality is checked by playing the move on one
+    // scratch copy, so the resulting position comes for free: batch code builds
+    // child boards from it without a second makeMove.
+    //
+    // Two equivalent strategies, visiting the same moves in the same order:
+    //   * buffered  — generate all pseudo-legal moves into a MoveList, then
+    //                 filter. Fastest on CPUs (tight generator loops).
+    //   * streaming — filter each pseudo-legal move as it is generated. Needs
+    //                 no 1 KB move buffer, which matters on GPUs where every
+    //                 thread's arrays spill to slow local memory.
+    // forEachLegal picks the right one for where it is compiled; both are
+    // public so tests can check they agree.
+    template <class Visit>
+    CHESS_HD void forEachLegal(Visit&& visit) const {
+#if defined(__CUDA_ARCH__)
+        forEachLegalStreaming(visit);
+#else
+        forEachLegalBuffered(visit);
+#endif
+    }
+
+    template <class Visit>
+    CHESS_HD void forEachLegalBuffered(Visit&& visit) const {
         MoveList ps; generatePseudo(ps);
-        const Color me = side;
-        const int kingSq = findKing(me);
+        const int kingSq = findKing(side);
         Board tmp = *this;            // copy once; make/unmake on the copy
         Undo u;
         for (int i = 0; i < ps.count; ++i) {
-            Move m = ps.moves[i];
-            PType mt = pieceType(tmp.sq[m.from]);
+            const Move m = ps.moves[i];
+            const PType mt = pieceType(tmp.sq[m.from]);
             tmp.makeMove(m, u);
-            int ks = (mt == KING) ? m.to : kingSq;   // king may have moved
-            if (!tmp.isAttacked(ks, tmp.side))        // tmp.side is now the opponent
-                out.moves[out.count++] = m;
+            const int ks = (mt == KING) ? m.to : kingSq;  // king may have moved
+            if (!tmp.isAttacked(ks, tmp.side))            // tmp.side is now the opponent
+                visit(m, static_cast<const Board&>(tmp));
             tmp.unmakeMove(m, u);
         }
     }
 
+    template <class Visit>
+    CHESS_HD void forEachLegalStreaming(Visit&& visit) const {
+        const int kingSq = findKing(side);
+        Board tmp = *this;
+        forEachPseudo([&](const Move& m) {
+            Undo u;
+            const PType mt = pieceType(tmp.sq[m.from]);
+            tmp.makeMove(m, u);
+            const int ks = (mt == KING) ? m.to : kingSq;
+            if (!tmp.isAttacked(ks, tmp.side))
+                visit(m, static_cast<const Board&>(tmp));
+            tmp.unmakeMove(m, u);
+        });
+    }
+
+    CHESS_HD void generateLegal(MoveList& out) const {
+        forEachLegal([&](const Move& m, const Board&) { out.add(m); });
+    }
+
+    CHESS_HD int countLegal() const {
+        int n = 0;
+        forEachLegal([&](const Move&, const Board&) { ++n; });
+        return n;
+    }
+
     // --- make / unmake ------------------------------------------------------
-    void makeMove(const Move& m, Undo& u) {
+    CHESS_HD void makeMove(const Move& m, Undo& u) {
         u.captured = 0;
         u.castling = castling;
         u.ep       = ep;
@@ -321,7 +476,7 @@ struct Board {
         side = opp(me);
     }
 
-    void unmakeMove(const Move& m, const Undo& u) {
+    CHESS_HD void unmakeMove(const Move& m, const Undo& u) {
         side = opp(side);                 // back to the mover
         const Color me = side;
         castling = u.castling;
@@ -359,7 +514,7 @@ struct Board {
 
     // Functional style for batch / GPU-style pipelines: return the child board
     // produced by `m` without mutating *this.
-    Board applied(const Move& m) const {
+    CHESS_HD Board applied(const Move& m) const {
         Board b = *this; Undo u; b.makeMove(m, u); return b;
     }
 
@@ -369,56 +524,67 @@ struct Board {
     std::string toString() const;     // ascii board for debugging
 
 private:
-    void clearCornerRight(int s) {
+    CHESS_HD void clearCornerRight(int s) {
         if      (s == sqOf(7, 0)) castling &= ~CR_WQ;
         else if (s == sqOf(7, 7)) castling &= ~CR_WK;
         else if (s == sqOf(0, 0)) castling &= ~CR_BQ;
         else if (s == sqOf(0, 7)) castling &= ~CR_BK;
     }
 
-    void genStep(int from, int r, int c, Color me, MoveList& out) const {
+    template <class Emit>
+    CHESS_HD static void emitMove(Emit& emit, int from, int to, uint8_t flag,
+                                  uint8_t promo = NO_TYPE) {
+        emit(Move{static_cast<uint8_t>(from), static_cast<uint8_t>(to), flag, promo});
+    }
+
+    template <class Emit>
+    CHESS_HD void genStep(int from, int r, int c, Color me, Emit& emit) const {
         if (!onBoard(r, c)) return;
         int t = sqOf(r, c);
         uint8_t p = sq[t];
-        if (!p)                       out.add(from, t, F_QUIET);
-        else if (pieceColor(p) != me) out.add(from, t, F_CAPTURE);
+        if (!p)                       emitMove(emit, from, t, F_QUIET);
+        else if (pieceColor(p) != me) emitMove(emit, from, t, F_CAPTURE);
     }
 
-    void genKnight(int s, Color me, MoveList& out) const {
-        static constexpr int KN[8][2] = {
-            {1,2},{1,-2},{-1,2},{-1,-2},{2,1},{2,-1},{-2,1},{-2,-1}};
+    template <class Emit>
+    CHESS_HD void genKnight(int s, Color me, Emit& emit) const {
         int r = rowOf(s), c = colOf(s);
-        for (auto& o : KN) genStep(s, r + o[0], c + o[1], me, out);
+        for (int k = 0; k < 8; ++k) {
+            const Step o = knightStep(k);
+            genStep(s, r + o.dr, c + o.dc, me, emit);
+        }
     }
 
-    void genSlider(int s, Color me, MoveList& out, bool diag, bool orth) const {
-        static constexpr int ORTH[4][2] = {{1,0},{-1,0},{0,1},{0,-1}};
-        static constexpr int DIAG[4][2] = {{1,1},{1,-1},{-1,1},{-1,-1}};
+    template <class Emit>
+    CHESS_HD void genSlider(int s, Color me, Emit& emit, bool diag, bool orth) const {
         int r = rowOf(s), c = colOf(s);
-        auto ray = [&](const int dir[4][2]) {
+        auto ray = [&](bool isDiag) {
             for (int k = 0; k < 4; ++k) {
-                int rr = r + dir[k][0], cc = c + dir[k][1];
+                const Step d = isDiag ? diagStep(k) : orthStep(k);
+                int rr = r + d.dr, cc = c + d.dc;
                 while (onBoard(rr, cc)) {
                     int t = sqOf(rr, cc);
                     uint8_t p = sq[t];
-                    if (!p) out.add(s, t, F_QUIET);
+                    if (!p) emitMove(emit, s, t, F_QUIET);
                     else {
-                        if (pieceColor(p) != me) out.add(s, t, F_CAPTURE);
+                        if (pieceColor(p) != me) emitMove(emit, s, t, F_CAPTURE);
                         break;
                     }
-                    rr += dir[k][0]; cc += dir[k][1];
+                    rr += d.dr; cc += d.dc;
                 }
             }
         };
-        if (orth) ray(ORTH);
-        if (diag) ray(DIAG);
+        if (orth) ray(false);
+        if (diag) ray(true);
     }
 
-    void genKing(int s, Color me, Color them, MoveList& out) const {
-        static constexpr int KG[8][2] = {
-            {-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
+    template <class Emit>
+    CHESS_HD void genKing(int s, Color me, Color them, Emit& emit) const {
         int r = rowOf(s), c = colOf(s);
-        for (auto& o : KG) genStep(s, r + o[0], c + o[1], me, out);
+        for (int k = 0; k < 8; ++k) {
+            const Step o = kingStep(k);
+            genStep(s, r + o.dr, c + o.dc, me, emit);
+        }
 
         // Castling: requires the right, empty path, a rook on the corner, and
         // the king not standing in / passing through / landing on an attacked
@@ -434,17 +600,18 @@ private:
             !isAttacked(sqOf(row, 4), them) &&
             !isAttacked(sqOf(row, 5), them) &&
             !isAttacked(sqOf(row, 6), them))
-            out.add(sqOf(row, 4), sqOf(row, 6), F_CASTLE_K);
+            emitMove(emit, sqOf(row, 4), sqOf(row, 6), F_CASTLE_K);
 
         if ((castling & qRight) && sq[sqOf(row, 0)] == myRook &&
             sq[sqOf(row, 1)] == 0 && sq[sqOf(row, 2)] == 0 && sq[sqOf(row, 3)] == 0 &&
             !isAttacked(sqOf(row, 4), them) &&
             !isAttacked(sqOf(row, 3), them) &&
             !isAttacked(sqOf(row, 2), them))
-            out.add(sqOf(row, 4), sqOf(row, 2), F_CASTLE_Q);
+            emitMove(emit, sqOf(row, 4), sqOf(row, 2), F_CASTLE_Q);
     }
 
-    void genPawn(int s, Color me, Color them, MoveList& out) const {
+    template <class Emit>
+    CHESS_HD void genPawn(int s, Color me, Color them, Emit& emit) const {
         const int r = rowOf(s), c = colOf(s);
         const int fwd      = (me == WHITE) ? -1 : 1;   // white moves up the board
         const int startRow = (me == WHITE) ? 6 : 1;
@@ -454,12 +621,12 @@ private:
         auto addPawn = [&](int from, int to, bool capture) {
             if (rowOf(to) == promoRow) {
                 uint8_t fl = capture ? F_PROMO_CAPTURE : F_PROMO;
-                out.add(from, to, fl, QUEEN);
-                out.add(from, to, fl, ROOK);
-                out.add(from, to, fl, BISHOP);
-                out.add(from, to, fl, KNIGHT);
+                emitMove(emit, from, to, fl, QUEEN);
+                emitMove(emit, from, to, fl, ROOK);
+                emitMove(emit, from, to, fl, BISHOP);
+                emitMove(emit, from, to, fl, KNIGHT);
             } else {
-                out.add(from, to, capture ? F_CAPTURE : F_QUIET);
+                emitMove(emit, from, to, capture ? F_CAPTURE : F_QUIET);
             }
         };
 
@@ -468,7 +635,7 @@ private:
             addPawn(s, sqOf(fr, c), false);
             int fr2 = r + 2 * fwd;
             if (r == startRow && sq[sqOf(fr2, c)] == 0)
-                out.add(s, sqOf(fr2, c), F_DOUBLE_PUSH);
+                emitMove(emit, s, sqOf(fr2, c), F_DOUBLE_PUSH);
         }
         // Captures and en passant.
         for (int dc = -1; dc <= 1; dc += 2) {
@@ -477,7 +644,7 @@ private:
             int t = sqOf(fr, cc);
             uint8_t p = sq[t];
             if (p && pieceColor(p) == them)      addPawn(s, t, true);
-            else if (ep >= 0 && t == ep)         out.add(s, t, F_EN_PASSANT);
+            else if (ep >= 0 && t == ep)         emitMove(emit, s, t, F_EN_PASSANT);
         }
     }
 };

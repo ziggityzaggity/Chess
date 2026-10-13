@@ -47,12 +47,41 @@ export interface ChessGame {
   drawReason(): number;
   pgn(): string;
   legalUci(): string[];
+  /** The current position as one compact board (BOARD_BYTES bytes). */
+  compactBoard(): Uint8Array;
+  /** Every legal move and the position it leads to; the game is not modified. */
+  rootChildren(): RootChildren;
   /** Release the underlying embind/WASM object. */
   delete(): void;
 }
 
-interface EngineModule {
+// Positions for the bots' search travel as compact boards: BOARD_BYTES-byte
+// chess::Board rows packed in one Uint8Array (see bindings/web/chess_web.cpp).
+
+/** The children of a batch of compact boards. */
+export interface Expansion {
+  boards: Uint8Array; // every child, BOARD_BYTES each
+  status: Uint8Array; // per child, for its side to move: 0 ongoing, 1 checkmated, 2 stalemate, 3 no mating material, 4 50-move rule
+  material: Float32Array; // per child: material for its side to move (minus 0.4 in check)
+  offsets: Int32Array; // board i's children are offsets[i] .. offsets[i + 1] - 1
+}
+
+/** The legal moves of a game's current position. */
+export interface RootChildren {
+  moves: string[]; // UCI, in the same order as the children
+  boards: Uint8Array;
+  status: Uint8Array;
+  material: Float32Array;
+  repetition: Uint8Array; // 1 if the move repeats a position for the third time
+}
+
+export interface EngineModule {
   ChessGame: new () => ChessGame;
+  expandBoards(boards: Uint8Array): Expansion;
+  /** Value-network input: NUM_PLANES x 8 x 8 floats per board (core/encode.hpp). */
+  encodeBoards(boards: Uint8Array): Float32Array;
+  BOARD_BYTES: number;
+  NUM_PLANES: number;
 }
 
 type EngineFactory = (opts?: {

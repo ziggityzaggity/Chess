@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { loadEngine, type ChessGame } from "./engine";
+import { loadEngine, type ChessGame, type EngineModule } from "./engine";
 import { chooseBotMove } from "./bot";
-import type { BotId } from "./bots";
+import { botQuery, DEFAULT_BOT, type BotSpec } from "./bots";
 
 export type EngineStatus = "loading" | "ready" | "error";
 
@@ -78,7 +78,7 @@ export interface UseChessGameOptions {
   mode?: GameMode;
   /** Which colour the bot plays (0 white, 1 black). Only used when mode="bot". */
   botColor?: number;
-  botId?: BotId;
+  bot?: BotSpec;
 }
 
 export interface UseChessGame {
@@ -93,6 +93,8 @@ export interface UseChessGame {
   mode: GameMode;
   botColor: number;
   botThinking: boolean;
+  /** Why the bot could not move (e.g. its model failed to load), if it couldn't. */
+  botError: string | null;
   manualResult: ManualResult | null;
   onSquareClick: (square: number) => void;
   choosePromotion: (piece: PromoPiece) => void;
@@ -111,10 +113,11 @@ export interface UseChessGame {
 export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
   const mode = options.mode ?? "local";
   const botColor = options.botColor ?? 1;
-  const botId = options.botId ?? "greedy";
+  const bot = options.bot ?? DEFAULT_BOT;
+  const botKey = botQuery(bot); // stable across renders, for effect dependencies
 
+  const engineRef = useRef<EngineModule | null>(null);
   const gameRef = useRef<ChessGame | null>(null);
-  const scratchRef = useRef<ChessGame | null>(null); // used only by the bot
   const [status, setStatus] = useState<EngineStatus>("loading");
   const [error, setError] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null);
@@ -125,6 +128,7 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
   const [flipped, setFlipped] = useState(mode === "bot" && botColor === 0);
   const [promotion, setPromotion] = useState<PendingPromotion | null>(null);
   const [botThinking, setBotThinking] = useState(false);
+  const [botError, setBotError] = useState<string | null>(null);
   const [manualResult, setManualResult] = useState<ManualResult | null>(null);
 
   useEffect(() => {
@@ -132,8 +136,8 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
     loadEngine()
       .then((Module) => {
         if (cancelled) return;
+        engineRef.current = Module;
         gameRef.current = new Module.ChessGame();
-        scratchRef.current = new Module.ChessGame();
         setSnapshot(snapshotOf(gameRef.current));
         setStatus("ready");
       })
@@ -301,8 +305,9 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
   }, [manualResult]);
 
   // --- bot opponent -------------------------------------------------------
-  // When it's the bot's turn and we're at the live tip (not reviewing), pick a
-  // move on the scratch instance and play it after a short, human-ish pause.
+  // When it's the bot's turn and we're at the live tip (not reviewing), let it
+  // choose after a short, human-ish pause. The search only reads the live game;
+  // the move is played if the position hasn't changed in the meantime.
   useEffect(() => {
     if (mode !== "bot" || status !== "ready") return;
     const s = snapshot;
@@ -310,36 +315,42 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
     if (s.canRedo) return; // user is reviewing earlier moves
     if (s.turn !== botColor) return;
 
+    const controller = new AbortController();
     setBotThinking(true);
-    const timer = window.setTimeout(() => {
+    const timer = window.setTimeout(async () => {
+      const engine = engineRef.current;
       const game = gameRef.current;
-      const scratch = scratchRef.current;
-      if (
-        !game ||
-        !scratch ||
-        game.isGameOver() ||
-        game.canRedo() ||
-        game.turn() !== botColor
-      ) {
+      if (!engine || !game || game.isGameOver() || game.canRedo() || game.turn() !== botColor) {
         setBotThinking(false);
         return;
       }
-      const uci = chooseBotMove(scratch, game.fen(), botColor, botId);
-      if (uci) {
-        play(
-          squareFromName(uci.slice(0, 2)),
-          squareFromName(uci.slice(2, 4)),
-          uci.length >= 5 ? uci[4] : ""
-        );
+      const fen = game.fen();
+      const ply = game.ply();
+      try {
+        const uci = await chooseBotMove(engine, game, bot, { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        if (uci && game.fen() === fen && game.ply() === ply && !game.canRedo()) {
+          play(
+            squareFromName(uci.slice(0, 2)),
+            squareFromName(uci.slice(2, 4)),
+            uci.length >= 5 ? uci[4] : ""
+          );
+        }
+        setBotError(null);
+      } catch (err: unknown) {
+        if (controller.signal.aborted) return;
+        setBotError(err instanceof Error ? err.message : String(err));
       }
       setBotThinking(false);
     }, 450);
 
     return () => {
+      controller.abort();
       window.clearTimeout(timer);
       setBotThinking(false);
     };
-  }, [mode, botColor, botId, status, snapshot, manualResult, play]);
+    // `bot` is identified by botKey.
+  }, [mode, botColor, botKey, status, snapshot, manualResult, play]);
 
   return {
     status,
@@ -353,6 +364,7 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
     mode,
     botColor,
     botThinking,
+    botError,
     manualResult,
     onSquareClick,
     choosePromotion,

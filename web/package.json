@@ -5,19 +5,21 @@
   "description": "Next.js frontend for the C++/WASM chess engine",
   "scripts": {
     "copy-engine": "node scripts/copy-engine.mjs",
-    "predev": "node scripts/copy-engine.mjs",
-    "prebuild": "node scripts/copy-engine.mjs",
+    "copy-ort": "node scripts/copy-ort.mjs",
+    "predev": "node scripts/copy-engine.mjs && node scripts/copy-ort.mjs",
+    "prebuild": "node scripts/copy-engine.mjs && node scripts/copy-ort.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:bots": "node scripts/test-bots.mjs"
+    "test:bots": "vitest run tests/bots.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.114.0",
     "next": "16.2.9",
+    "onnxruntime-web": "^1.30.0",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },

@@ -18,12 +18,19 @@ The live game keeps its immersive dark backdrop in every app theme.
   the user's `profiles` row — then the navbar swaps to a profile avatar with a menu.
 - **New game** (`/play`) — choose Local game (pass and play), Play a friend,
   or Play the bot. Time controls appear in game setup rather than on this screen.
-- **Bot setup** (`/play/bot`) — choose White / Random / Black, then Wanderer
-  (random legal moves), Collector (one-ply material evaluation), or Lookahead
-  (two-ply minimax). Each opponent has a short architecture description.
+- **Bot setup** (`/play/bot`) — choose White / Random / Black, then a bot
+  family, and a lookahead depth of 1–3 moves with the slider:
+  - **Jester** — random legal moves (no depth);
+  - **Greedy** — material search (depth 1 is the old Collector, depth 2 the old Lookahead);
+  - **Convolutional** — a residual CNN value network, in a small, medium or large
+    size; a size is offered only once its model is deployed (see below);
+  - **Deep Q** — announced as coming soon; not playable yet.
+
   All bot games are untimed, including older URLs with a `min` parameter.
-  Random resolves once when starting; the selected bot and resolved colour are
-  carried in the game URL. Playing Black rotates the board and lets the bot open.
+  Random resolves once when starting; the bot and resolved colour are carried in
+  the game URL (`?mode=bot&bot=cnn&size=small&depth=2&colour=white`; older
+  `bot=random|greedy|minimax` links still work). Playing Black rotates the board
+  and lets the bot open.
 - **Local setup** (`/play/local`) — choose 3, 10, 30 minutes per player, or ∞,
   then start a pass-and-play game. Unlimited games display ∞ for both clocks and
   never start a countdown or trigger a timeout. The game URL uses `min=unlimited`.
@@ -104,12 +111,44 @@ npm run build
 npm start
 ```
 
-## Bot verification
+## Bots
 
-`npm run test:bots` exercises all three browser bots against the committed WASM
-engine: legal moves for both colours, simulation isolation, mate in one,
-promotion positions, terminal games, and a defended-piece trap that distinguishes
-the two-ply search from the greedy evaluator.
+All bots run in the browser. [`src/lib/bot.ts`](src/lib/bot.ts) is the entry
+point (`chooseBotMove`); the hook calls it asynchronously, so a slow search never
+blocks the board.
+
+- [`search.ts`](src/lib/search.ts) — negamax with alpha-beta pruning and
+  iterative deepening over compact positions (72-byte boards) from the WASM
+  engine (`rootChildren`, `expandBoards`). Positions the rules decide (mate,
+  stalemate, 50-move, insufficient material, threefold repetition) are scored
+  exactly; others at the horizon are valued by a `LeafEvaluator`: material for
+  Greedy, the value network for Convolutional. A mate in one is always played.
+- [`evaluators.ts`](src/lib/evaluators.ts) — `OnnxEvaluator` runs a network
+  with `onnxruntime-web` (WebAssembly, in a worker) on inputs encoded by the
+  engine (`encodeBoards`, the same C++ encoder the network was trained with).
+  `PositionEvaluator` is the interface a remotely hosted model (e.g. on Modal)
+  would implement.
+- [`models.ts`](src/lib/models.ts) — reads `public/models/manifest.json`.
+
+**Deploying a model.** The notebook `ai/chess_value_network.ipynb` exports
+`value_net_<size>.onnx` files and a `manifest.json`. Copy them into
+`public/models/`; the app offers exactly the sizes listed in the manifest, which
+ships empty. The onnxruntime-web runtime is copied from `node_modules` into
+`public/ort/` by `scripts/copy-ort.mjs` before every dev/build (git-ignored).
+Network bots stop deepening after 15 seconds and play their best move from the
+deepest completed search. ONNX Runtime uses several threads only on a
+cross-origin-isolated page (COOP/COEP headers), which the app does not set yet.
+
+`npm run test:bots` (`tests/bots.test.ts`) checks every bot against the
+committed WASM engine:
+- legal moves for both colours, and the live game left untouched;
+- mate in one, promotions and finished games;
+- the defended-pawn trap that depth 2 avoids;
+- a mate in two found at depth 3;
+- alpha-beta scores equal to a full negamax;
+- repetition, the time budget and cancellation;
+- for the network path, an untrained fixture model, whose WASM encoding and
+  onnxruntime-web outputs must match the Python package and PyTorch.
 ## Tests
 
 `tests/auth-flows.test.ts` ([Vitest](https://vitest.dev)) confirms the login and

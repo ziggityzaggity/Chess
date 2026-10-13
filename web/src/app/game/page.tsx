@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/lib/settings";
 import { toMoveRows } from "@/lib/pgn";
 import { parseTimeControl } from "@/lib/timeControl";
-import { BOTS, parseBotId } from "@/lib/bots";
+import { botName, botTagline, parseBotSpec } from "@/lib/bots";
 import { useChessGame, type GameSnapshot } from "@/lib/useChessGame";
 
 const DRAW = [
@@ -39,13 +39,13 @@ function GameScreen() {
   const mode = params.get("mode") === "bot" ? "bot" : "local";
   const time = mode === "bot" ? "unlimited" : parseTimeControl(params.get("min"));
   const playerColor = params.get("colour") === "black" ? 1 : 0;
-  const botId = parseBotId(params.get("bot"));
+  const bot = useMemo(() => parseBotSpec(params), [params]);
   const timed = time !== "unlimited";
   const initialSeconds = time === "unlimited" ? Infinity : time * 60;
 
   const { settings } = useSettings();
   const { user } = useAuth();
-  const game = useChessGame({ mode, botColor: 1 - playerColor, botId });
+  const game = useChessGame({ mode, botColor: 1 - playerColor, bot });
   const { snapshot } = game;
 
   // --- clocks (local, display-only) --------------------------------------
@@ -107,8 +107,8 @@ function GameScreen() {
     initials: user?.initials,
   };
   const opponent = {
-    name: mode === "bot" ? BOTS[botId].name : "Black",
-    tag: mode === "bot" ? `${BOTS[botId].architecture} · ${playerColor === 0 ? "Black" : "White"}` : "Pass-and-play",
+    name: mode === "bot" ? botName(bot) : "Black",
+    tag: mode === "bot" ? `${botTagline(bot)} · ${playerColor === 0 ? "Black" : "White"}` : "Pass-and-play",
     initials: undefined as string | undefined,
   };
 
@@ -485,6 +485,8 @@ function turnStatus(
   if (!s) return { text: "Loading…", tone: "bg-paper-200 text-muted" };
   const check = s.inCheck ? " · check" : "";
   if (game.mode === "bot") {
+    if (s.turn === game.botColor && game.botError)
+      return { text: game.botError, tone: "bg-paper-200 text-muted" };
     if (s.turn === game.botColor)
       return {
         text: (game.botThinking ? "Bot is thinking…" : "Bot to move") + check,
