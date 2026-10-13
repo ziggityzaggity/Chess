@@ -1,5 +1,6 @@
 # Welcome to [PyChess](https://www.pychess.app)!
-<img width="3840" height="1787" alt="image" src="https://github.com/user-attachments/assets/8b81f9f1-f0a6-491b-abd6-54d5255353af" />
+<img width="2864" height="1694" alt="image" src="https://github.com/user-attachments/assets/156fd63e-af83-4aa8-9fb0-24f2e5f600c9" />
+
 
 ## Background 
 This is an updated version of my final project for CS50 in 2022. The original version was written 100% in Python using the PyGame module. Now, this project is a full-stack web app that allows users to play chess on their web browser either locally, against another user on the app, or against one of our bots! 
@@ -18,7 +19,7 @@ The same core is exposed to Python through pybind11 in ```/bindings/python/``` (
 
 Future developments include new different architectures for these chess-playing agents, including but not limited to graph neural networks and deep q learning networks.
 
-User authentication is handled by Supabase using the Resend SMTP to send 6-digit verification codes. User data is stored in a PostgreSQL database on Supabase. Hosting is handled by Vercel and the build is kept up-to-date by the github-actions bot.
+User authentication is handled by Supabase using the Resend SMTP to send 6-digit verification codes or through Google's OAuth. User data is stored in a PostgreSQL database on Supabase. Hosting is handled by Vercel and the build is kept up-to-date by the Github Actions bot.
 
 Many many more features to come!
 
