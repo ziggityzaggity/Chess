@@ -132,8 +132,8 @@ blocks the board.
 
 **Deploying a model.** The notebook `ai/chess_value_network.ipynb` exports
 `value_net_<size>.onnx` files and a `manifest.json`. Copy them into
-`public/models/`; the app offers exactly the sizes listed in the manifest, which
-ships empty. The onnxruntime-web runtime is copied from `node_modules` into
+`public/models/`; the app offers exactly the sizes listed in the manifest
+(currently the small model). The onnxruntime-web runtime is copied from `node_modules` into
 `public/ort/` by `scripts/copy-ort.mjs` before every dev/build (git-ignored).
 Network bots stop deepening after 15 seconds and play their best move from the
 deepest completed search. ONNX Runtime uses several threads only on a
@@ -148,7 +148,9 @@ committed WASM engine:
 - alpha-beta scores equal to a full negamax;
 - repetition, the time budget and cancellation;
 - for the network path, an untrained fixture model, whose WASM encoding and
-  onnxruntime-web outputs must match the Python package and PyTorch.
+  onnxruntime-web outputs must match the Python package and PyTorch;
+- every deployed model: its file exists, its encoding matches, and it plays
+  legal moves and takes a hanging queen.
 ## Tests
 
 `tests/auth-flows.test.ts` ([Vitest](https://vitest.dev)) confirms the login and

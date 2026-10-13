@@ -112,10 +112,16 @@ def seed_everything(seed: int) -> None:
 
 
 def amp_dtype(device: torch.device):
-    """Mixed precision for the device: bfloat16 where supported, else float16; none on CPU."""
+    """Mixed precision for the device: bfloat16 on Ampere and newer, else float16; none on CPU.
+
+    Older GPUs such as the T4 have no bfloat16 tensor cores. PyTorch still reports
+    bfloat16 as supported there (it is emulated), but convolutions run many times
+    slower than in float16.
+    """
     if device.type != "cuda":
         return None
-    return torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+    major, _ = torch.cuda.get_device_capability(device)
+    return torch.bfloat16 if major >= 8 else torch.float16
 
 
 def configure_gpu() -> None:
@@ -463,7 +469,8 @@ def train(model, loaders, y_val, cfg: Config, device, checkpoint_dir=None, label
             model.load_state_dict(state["model"])
             opt.load_state_dict(state["optimizer"])
             sched.load_state_dict(state["scheduler"])
-            scaler.load_state_dict(state["scaler"])
+            if state["scaler"]:   # empty when saved without loss scaling (bfloat16 or CPU)
+                scaler.load_state_dict(state["scaler"])
             loaders["train"].gen.set_state(state["data_rng"])
             torch.set_rng_state(state["torch_rng"])
             if device.type == "cuda" and state.get("cuda_rng") is not None:
@@ -759,7 +766,7 @@ def export_checkpoint(checkpoint, out_dir, size: Optional[str] = None) -> dict:
     to out_dir/manifest.json, keeping the models already listed there. Returns
     the model's manifest entry.
     """
-    state = torch.load(checkpoint, map_location="cpu", weights_only=False)
+    state = torch.load(checkpoint, map_location="cpu", weights_only=True)   # tensors and plain data only
     weights, fp = state["best"]["state"], state["fingerprint"]
     if "material.weight" not in weights:
         raise ValueError(f"{checkpoint} is not a CNN built on the material model (the ablation or linear baseline?)")
