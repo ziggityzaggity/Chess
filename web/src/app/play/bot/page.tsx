@@ -55,7 +55,7 @@ export default function BotSetupPage() {
       ? "Coming soon"
       : f === "cnn" && !anyModel
         ? manifest
-          ? "Not deployed yet"
+          ? "Still training…"
           : "Checking for models…"
         : null;
 
@@ -217,7 +217,7 @@ export default function BotSetupPage() {
                   <span className="flex h-full flex-col items-center rounded-2xl border border-line bg-surface px-2 py-4 text-center transition hover:border-gold peer-checked:border-gold peer-checked:ring-1 peer-checked:ring-gold peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-gold peer-disabled:hover:border-line sm:px-4">
                     <span className="text-sm font-bold capitalize text-ink">{s}</span>
                     <span className="mt-1 text-xs leading-relaxed text-muted">
-                      {deployed(s) ? MODEL_SIZE_DETAIL[s] : "Not deployed"}
+                      {deployed(s) ? MODEL_SIZE_DETAIL[s] : "Still training…"}
                     </span>
                   </span>
                 </label>

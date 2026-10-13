@@ -14,6 +14,8 @@ There are three model sizes, so players can choose their opponent:
 | medium | 6 | 64 | 720k |
 | large | 8 | 96 | 1.6M |
 
+The small model is trained and deployed; the notebook trains medium and large.
+
 | Path | What it is |
 |---|---|
 | [`chess_value_network.ipynb`](chess_value_network.ipynb) | **The workflow:** raw games → EDA → cleaning → features → CNNs → evaluation → move selection → export |
@@ -60,7 +62,7 @@ python ai/data/download_games.py --source twic               # official TWIC zip
 The first cell clones this repository and runs `pip install`. That compiles the
 C++ engine and its CUDA kernels for the attached GPU. If the repository is
 private, add a GitHub token as the Colab secret `GITHUB_TOKEN` first. The `gpu`
-profile trains all three sizes on all positions. The notebook stops if the GPU
+profile trains medium and large. The notebook stops if the GPU
 kernels did not build, and runs a GPU self-test (perft plus GPU-vs-CPU
 comparisons) before training.
 
@@ -83,10 +85,19 @@ pip install ".[torch]" matplotlib pandas scikit-learn jupyter onnxruntime   # fr
 jupyter notebook ai/chess_value_network.ipynb
 ```
 
-Without a GPU the notebook picks the `cpu` profile: only the small model, on
-sub-sampled epochs. The outputs saved in the notebook were produced that way.
+Without a GPU the notebook picks the `cpu` profile: only the medium model, on a
+smaller budget. The outputs saved in the notebook were produced that way.
 Set `CHESS_PROFILE=gpu|cpu|smoke` to override, or edit `cfg` in the
-configuration cell (for example `sizes=("small",)`).
+configuration cell (for example `sizes=("large",)`).
+
+**How training works.** An epoch is a random sample of training positions
+(250k on the GPU), since positions from one game are near-duplicates and full
+passes lead to memorisation within a few epochs. The learning rate warms up over
+the first epoch and is cut to 30% after every epoch without validation
+improvement; training stops after 4 such epochs and keeps the best weights.
+AdamW's weight decay (0.01) applies to convolution and linear weights only.
+Mixed precision uses bfloat16 on Ampere and newer GPUs, float16 on older ones
+such as the T4.
 
 ## Playing against a trained model
 
@@ -136,7 +147,7 @@ notebook later finishes, its export rewrites the manifest with every trained siz
 The web app runs the networks in the browser with `onnxruntime-web`. The same
 encoding is compiled to WASM with the rest of the engine, and its search
 (`web/src/lib/search.ts`) uses alpha-beta pruning. It offers exactly the models
-listed in `web/public/models/manifest.json` (currently the small model). To deploy, copy
-`manifest.json` and the chosen `value_net_<size>.onnx` files from `models/` into
-`web/public/models/`. Remove any entries from the manifest whose `.onnx` file you
-did not copy.
+listed in `web/public/models/manifest.json` (currently the small model); the
+others show "Still training…". The notebook's `manifest.json` keeps the models
+already deployed and adds the new ones. To deploy, copy it and the new
+`value_net_<size>.onnx` files from `models/` into `web/public/models/`.

@@ -41,7 +41,7 @@ export async function chooseBotMove(
   let timeBudgetMs = options.timeBudgetMs;
   if (bot.family === "cnn") {
     const model = cnnModel(await loadModelManifest(), bot.size);
-    if (!model) throw new Error(`${botName(bot)} is not available yet: no trained model is deployed.`);
+    if (!model) throw new Error(`${botName(bot)} is still training. Choose another size for now.`);
     evaluator = networkLeafEvaluator(await onnxEvaluator(engine, modelUrl(model)));
     timeBudgetMs ??= NETWORK_TIME_BUDGET_MS;
   }

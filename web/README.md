@@ -23,7 +23,8 @@ The live game keeps its immersive dark backdrop in every app theme.
   - **Jester** — random legal moves (no depth);
   - **Greedy** — material search (depth 1 is the old Collector, depth 2 the old Lookahead);
   - **Convolutional** — a residual CNN value network, in a small, medium or large
-    size; a size is offered only once its model is deployed (see below);
+    size; a size is offered once its model is deployed (see below), and shows
+    "Still training…" until then;
   - **Deep Q** — announced as coming soon; not playable yet.
 
   All bot games are untimed, including older URLs with a `min` parameter.

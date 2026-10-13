@@ -69,7 +69,7 @@ SIZES = {
 @dataclass
 class Config:
     seed: int = 7
-    sizes: tuple = ("small", "medium", "large")   # which models to train
+    sizes: tuple = ("medium", "large")   # which models to train (the small one is deployed already)
     # data cleaning
     min_plies: int = 20            # drop games shorter than this (forfeits, opening accidents)
     min_draw_plies: int = 40       # drop draws agreed before move 20 ("grandmaster draws")
@@ -81,11 +81,16 @@ class Config:
     hidden: int = 128
     dropout: float = 0.3
     # training
-    epochs: int = 20
-    samples_per_epoch: Optional[int] = None   # None = every training position, every epoch
+    epochs: int = 30               # at most; early stopping usually ends a run sooner
+    # Positions from one game are near-duplicates, so a model memorises the
+    # training games after a few passes. An "epoch" is a random sample of
+    # positions: validation, checkpoints and learning-rate decisions come often.
+    samples_per_epoch: Optional[int] = 250_000   # None = every training position, every epoch
     batch_size: int = 1024
-    lr: float = 2e-3
-    weight_decay: float = 1e-4
+    lr: float = 2e-3               # peak learning rate, reached after `warmup_epochs`
+    warmup_epochs: int = 1
+    lr_decay: float = 0.3          # multiply the learning rate by this after each epoch without improvement
+    weight_decay: float = 1e-2     # AdamW, on convolution and linear weights only
     patience: int = 4              # early stopping: epochs without validation improvement
     mirror_augment: bool = True
     compile: bool = False          # torch.compile the model (faster epochs after a slow first one)
@@ -98,9 +103,9 @@ class Config:
 
 PROFILES = {
     "gpu": Config(),
-    "cpu": Config(sizes=("small",), epochs=10, samples_per_epoch=150_000, batch_size=512,
+    "cpu": Config(sizes=("medium",), epochs=12, samples_per_epoch=120_000, batch_size=512,
                   patience=3, match_games=64, depth2_games=32),
-    "smoke": Config(sizes=("small",), max_games=400, epochs=2, samples_per_epoch=5_000,
+    "smoke": Config(sizes=("medium",), max_games=400, epochs=2, samples_per_epoch=5_000,
                     batch_size=256, match_games=8, match_max_plies=60, depth2_games=4),
 }
 
@@ -433,7 +438,12 @@ def _save_atomically(obj, path: Path) -> None:
 
 def train(model, loaders, y_val, cfg: Config, device, checkpoint_dir=None, label="", lr=None,
           epochs=None, patience=None) -> pd.DataFrame:
-    """Train with AdamW + one-cycle LR + mixed precision + early stopping on validation log loss.
+    """Train with AdamW + mixed precision + early stopping on validation log loss.
+
+    The learning rate warms up linearly over `cfg.warmup_epochs`, then is
+    multiplied by `cfg.lr_decay` after every epoch that does not improve the
+    validation loss, so it decays wherever overfitting starts. Weight decay
+    applies to convolution and linear weights, not to biases or batch norm.
 
     After every epoch the full training state (weights, optimiser, schedule,
     loss scaler, data-order RNG, history, best weights so far) is written to
@@ -446,9 +456,12 @@ def train(model, loaders, y_val, cfg: Config, device, checkpoint_dir=None, label
     lr, epochs, patience = lr or cfg.lr, epochs or cfg.epochs, patience or cfg.patience
     dtype = amp_dtype(device)
     params = [p for p in model.parameters() if p.requires_grad]
-    opt = torch.optim.AdamW(params, lr=lr, weight_decay=cfg.weight_decay)
+    opt = torch.optim.AdamW([{"params": [p for p in params if p.ndim > 1], "weight_decay": cfg.weight_decay},
+                             {"params": [p for p in params if p.ndim <= 1], "weight_decay": 0.0}], lr=lr)
     steps = len(loaders["train"])
-    sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=lr, total_steps=epochs * steps, pct_start=0.15)
+    warmup_steps = cfg.warmup_epochs * steps
+    sched = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, factor=cfg.lr_decay, patience=0, threshold=1e-4,
+                                                       threshold_mode="abs", min_lr=lr / 1000)
     scaler = torch.amp.GradScaler(enabled=dtype == torch.float16)
     step_model = torch.compile(model) if cfg.compile else model
 
@@ -488,7 +501,11 @@ def train(model, loaders, y_val, cfg: Config, device, checkpoint_dir=None, label
         model.train()
         t0 = time.time()
         total, seen = torch.zeros((), device=device), 0
-        for x, y in loaders["train"]:
+        for i, (x, y) in enumerate(loaders["train"]):
+            step = (epoch - 1) * steps + i
+            if step < warmup_steps:
+                for group in opt.param_groups:
+                    group["lr"] = lr * (step + 1) / warmup_steps
             with torch.autocast(device.type, dtype=dtype, enabled=dtype is not None):
                 loss = F.cross_entropy(step_model(x), y)
             opt.zero_grad(set_to_none=True)
@@ -497,19 +514,20 @@ def train(model, loaders, y_val, cfg: Config, device, checkpoint_dir=None, label
             nn.utils.clip_grad_norm_(params, 1.0)
             scaler.step(opt)
             scaler.update()
-            sched.step()
             total += loss.detach().float() * len(y)
             seen += len(y)
         train_loss = total.item() / seen
         val = evaluate_probs(predict(model, loaders["val"], device), y_val)
         speed = seen / (time.time() - t0)
+        epoch_lr = opt.param_groups[0]["lr"]
+        sched.step(val["log loss"])
         history.append({"epoch": epoch, "train log loss": train_loss, "val log loss": val["log loss"],
-                        "val accuracy": val["accuracy"], "positions/s": speed})
+                        "val accuracy": val["accuracy"], "positions/s": speed, "lr": epoch_lr})
         improved = val["log loss"] < best["loss"] - 1e-4
         if improved:
             best = {"loss": val["log loss"], "state": copy.deepcopy(model.state_dict()), "epoch": epoch}
         print(f"{label}epoch {epoch:2d}  train {train_loss:.4f}  val {val['log loss']:.4f}  "
-              f"acc {val['accuracy']:.3f}  {speed:8,.0f} pos/s {'*' if improved else ''}")
+              f"acc {val['accuracy']:.3f}  lr {epoch_lr:.1e}  {speed:8,.0f} pos/s {'*' if improved else ''}")
         stop = epoch - best["epoch"] >= patience
         finished = stop or epoch == epochs
         if ckpt:
@@ -743,17 +761,25 @@ def export_model(model: ValueNet, size: ModelSize, sample: torch.Tensor, out_dir
     return entry
 
 
-def write_web_manifest(entries: list, out_dir, merge: bool = False) -> Path:
+def write_web_manifest(entries: list, out_dir, merge: bool = False, base=None) -> Path:
     """manifest.json for web/public/models/: the web app offers exactly the models listed here.
 
-    With merge=True, models already in out_dir/manifest.json are kept unless an
-    entry with the same id replaces them.
+    Models listed in `base` (e.g. the web app's current manifest) and, with
+    merge=True, in out_dir/manifest.json are kept unless an entry with the same
+    id replaces them.
     """
     path = Path(out_dir) / "manifest.json"
-    if merge and path.exists():
-        ids = {e["id"] for e in entries}
-        entries = [e for e in json.loads(path.read_text())["models"] if e["id"] not in ids] + list(entries)
-    path.write_text(json.dumps({"version": 1, "encoding": ENCODING, "models": entries}, indent=2, default=str))
+    sources = [Path(base)] if base else []
+    if merge:
+        sources.append(path)
+    kept = {}
+    for source in sources:
+        if source.exists():
+            kept.update({e["id"]: e for e in json.loads(source.read_text())["models"]})
+    for e in entries:
+        kept.pop(e["id"], None)
+    models = list(kept.values()) + list(entries)
+    path.write_text(json.dumps({"version": 1, "encoding": ENCODING, "models": models}, indent=2, default=str))
     return path
 
 
