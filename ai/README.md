@@ -18,6 +18,7 @@ There are three model sizes, so players can choose their opponent:
 |---|---|
 | [`chess_value_network.ipynb`](chess_value_network.ipynb) | **The workflow:** raw games → EDA → cleaning → features → CNNs → evaluation → move selection → export |
 | [`value_training.py`](value_training.py) | The code the notebook calls: data loading, GPU data pipeline, model, resumable training, matches, export |
+| [`export_checkpoint.py`](export_checkpoint.py) | Exports one model from its training checkpoint (deploy before the other sizes finish) |
 | [`data/download_games.py`](data/download_games.py) | Downloads and curates the training games (standard library only) |
 | [`data/twic_otb2300.pgn`](data/twic_otb2300.pgn) | The 10,000 curated games |
 | [`data/twic_otb2300.manifest.json`](data/twic_otb2300.manifest.json) | Source, filters, counts and checksum for the PGN |
@@ -116,6 +117,19 @@ it.
 
 Each `value_net_<size>_card.json` documents the input contract (plane order,
 side-to-move perspective, output order) and the model's metrics.
+
+## Exporting one model early
+
+Each model's checkpoint holds everything needed to export it, so a finished size
+can be deployed while the others are still training:
+
+```sh
+python ai/export_checkpoint.py ai/checkpoints/gpu/cnn-small/last.pt --out ai/models
+```
+
+This writes the same files as the notebook's export, and adds the model to
+`manifest.json` in `--out`, keeping the models already listed there. When the
+notebook later finishes, its export rewrites the manifest with every trained size.
 
 ## Deploying to the web app
 

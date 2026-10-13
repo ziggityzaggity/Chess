@@ -97,3 +97,24 @@ def test_matches_and_export(data, tmp_path):
     manifest = vt.write_web_manifest([entry], tmp_path)
     assert entry["file"] == "value_net_tiny.onnx" and entry["encoding"] == vt.ENCODING
     assert (tmp_path / entry["file"]).exists() and manifest.exists()
+
+
+def test_export_from_checkpoint_matches_the_trained_model(data, tmp_path):
+    pytest.importorskip("onnxscript")
+    pytest.importorskip("onnxruntime")
+    model, _ = _train(data, tmp_path / "ckpt")
+    entry = vt.export_checkpoint(tmp_path / "ckpt" / "last.pt", tmp_path / "models", size="small")
+    assert entry["id"] == "cnn-small" and entry["blocks"] == TINY.blocks and entry["channels"] == TINY.channels
+    pos, _, _ = data
+    x = vt.ce.encode_boards(pos.boards[:32])
+    with torch.no_grad():
+        expected = torch.softmax(model.eval()(torch.from_numpy(x)), 1).numpy()
+    got = vt.player.load_evaluator(str(tmp_path / "models" / entry["file"]))(x)
+    assert np.allclose(got, expected, atol=1e-4)
+
+    # a second export adds to the manifest instead of replacing it
+    other = dict(entry, id="cnn-large", size="large", file="value_net_large.onnx")
+    vt.write_web_manifest([other], tmp_path / "models", merge=True)
+    vt.export_checkpoint(tmp_path / "ckpt" / "last.pt", tmp_path / "models", size="small")
+    manifest = vt.json.loads((tmp_path / "models" / "manifest.json").read_text())
+    assert sorted(m["id"] for m in manifest["models"]) == ["cnn-large", "cnn-small"]

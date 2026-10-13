@@ -14,7 +14,8 @@ Sections:
     model           ResidualBlock, ValueNet, build_model
     training        train (resumable checkpoints), predict
     play            policies, play_match, elo_diff, match_table, greedy_material_move
-    export          export_model (ONNX + torch.export + checkpoint + model card), write_web_manifest
+    export          export_model (ONNX + torch.export + checkpoint + model card), write_web_manifest,
+                    export_checkpoint (a model straight from its training checkpoint)
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ import os
 import random
 import time
 from dataclasses import asdict, dataclass, field
+from dataclasses import fields as dataclasses_fields
 from pathlib import Path
 from typing import Optional
 
@@ -734,8 +736,57 @@ def export_model(model: ValueNet, size: ModelSize, sample: torch.Tensor, out_dir
     return entry
 
 
-def write_web_manifest(entries: list, out_dir) -> Path:
-    """manifest.json for web/public/models/: the web app offers exactly the models listed here."""
+def write_web_manifest(entries: list, out_dir, merge: bool = False) -> Path:
+    """manifest.json for web/public/models/: the web app offers exactly the models listed here.
+
+    With merge=True, models already in out_dir/manifest.json are kept unless an
+    entry with the same id replaces them.
+    """
     path = Path(out_dir) / "manifest.json"
+    if merge and path.exists():
+        ids = {e["id"] for e in entries}
+        entries = [e for e in json.loads(path.read_text())["models"] if e["id"] not in ids] + list(entries)
     path.write_text(json.dumps({"version": 1, "encoding": ENCODING, "models": entries}, indent=2, default=str))
     return path
+
+
+def export_checkpoint(checkpoint, out_dir, size: Optional[str] = None) -> dict:
+    """Export the best weights of a training checkpoint (checkpoints/<profile>/cnn-<size>/last.pt).
+
+    Works while other models are still training: the network is rebuilt from
+    the checkpoint alone (architecture from the weights, settings from the
+    run's fingerprint). Writes the files export_model writes and adds the model
+    to out_dir/manifest.json, keeping the models already listed there. Returns
+    the model's manifest entry.
+    """
+    state = torch.load(checkpoint, map_location="cpu", weights_only=False)
+    weights, fp = state["best"]["state"], state["fingerprint"]
+    if "material.weight" not in weights:
+        raise ValueError(f"{checkpoint} is not a CNN built on the material model (the ablation or linear baseline?)")
+    channels = weights["stem.0.weight"].shape[0]
+    blocks = len({k.split(".")[1] for k in weights if k.startswith("tower.")})
+    if size is None:
+        matches = [s.name for s in SIZES.values() if (s.blocks, s.channels) == (blocks, channels)]
+        if not matches:
+            raise ValueError(f"{blocks} blocks x {channels} channels is not a known size; pass size=")
+        size = matches[0]
+    model_size = ModelSize(size, blocks=blocks, channels=channels)
+    names = {f.name for f in dataclasses_fields(Config)}
+    cfg = Config(**{k: (tuple(v) if k == "sizes" else v) for k, v in fp.items() if k in names})
+    zero_prior = (np.zeros((3, 12), np.float32), np.zeros(3, np.float32))   # replaced by the saved weights
+    model = build_model(model_size, cfg, zero_prior)
+    model.load_state_dict(weights)
+    assert trainable_parameters(model) == fp["parameters"], "checkpoint does not match the rebuilt network"
+    sample = torch.from_numpy(ce.encode_boards(np.stack([ce.startpos()] * 8)))
+    history = state["history"]
+    extra = {
+        "label": f"Convolutional ({size})",
+        "val_log_loss": round(float(state["best"]["loss"]), 4),
+        "best_epoch": int(state["best"]["epoch"]),
+        "epochs_run": len(history),
+        "training_finished": bool(state["finished"]),
+        "exported_from": "checkpoint",
+    }
+    entry = export_model(model.eval(), model_size, sample, out_dir, cfg, extra)
+    write_web_manifest([entry], out_dir, merge=True)
+    return entry
