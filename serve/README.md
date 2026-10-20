@@ -83,9 +83,25 @@ set, the web app doesn't show the server option.
 | Variable | Default | Meaning |
 |---|---|---|
 | `PYCHESS_MODEL` | `web/public/models/value_net_large.onnx` | The network to serve |
-| `PYCHESS_GPU` | `L4` | Modal GPU type (`T4` is cheaper and slower) |
+| `PYCHESS_GPU` | `L4` | Modal GPU type (`T4` is cheaper and slower), or `cpu` (below) |
 | `PYCHESS_MIN_CONTAINERS` | `0` | Containers kept running; `1` removes cold starts (about 20 s) but is billed while idle |
 | `PYCHESS_ALLOWED_ORIGINS` | `https://www.pychess.app,https://pychess.app,http://localhost:3000` | Sites allowed to call the server |
+
+### Without a GPU
+
+Modal asks for a payment method before it runs GPU functions. To run on CPUs
+instead, deploy with `PYCHESS_GPU=cpu`:
+
+```sh
+PYCHESS_GPU=cpu modal run serve/modal_app.py      # benchmark
+PYCHESS_GPU=cpu modal deploy serve/modal_app.py
+```
+
+(PowerShell: `$env:PYCHESS_GPU = "cpu"` first.) The container gets 8 CPU cores and
+the CPU build of ONNX Runtime. Searches are capped at depth 2: a depth-3 request is
+searched to depth 2, and the response's `depth` says so, which the game screen
+shows. With the large model on 4 cores, depth 2 takes 0.15–1.3 s per move; depth 3
+would take 20–45 s. Deploy again without the variable to switch back to the GPU.
 
 To change the limit of 200 moves per hour, edit `v_limit` in the migration (a new
 migration that replaces the function).

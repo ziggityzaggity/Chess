@@ -274,8 +274,12 @@ class SupabaseQuota:
 # The HTTP API
 # =============================================================================
 def create_app(evaluate: player.Evaluator, quota, allowed_origins: Sequence[str] = ("*",),
-               max_concurrent_searches: int = 4):
-    """The FastAPI app. `quota` has `async consume(token) -> Quota`."""
+               max_concurrent_searches: int = 4, max_depth: int = MAX_DEPTH):
+    """The FastAPI app. `quota` has `async consume(token) -> Quota`.
+
+    Requests deeper than `max_depth` are searched to `max_depth` (a CPU-only
+    deployment caps it at 2); the response's `depth` says how deep it went.
+    """
     from fastapi import FastAPI, Header
     from fastapi.concurrency import run_in_threadpool
     from fastapi.middleware.cors import CORSMiddleware
@@ -320,7 +324,7 @@ def create_app(evaluate: player.Evaluator, quota, allowed_origins: Sequence[str]
             return error(429, "rate_limited", f"You've used all {q.limit} server moves this hour.",
                          limit=q.limit, remaining=0, retry_after_s=q.retry_after_s)
         async with searches:
-            result = await run_in_threadpool(best_move, game, evaluate, req.depth)
+            result = await run_in_threadpool(best_move, game, evaluate, min(req.depth, max_depth))
         return {**result.__dict__, "limit": q.limit, "remaining": q.remaining}
 
     return app

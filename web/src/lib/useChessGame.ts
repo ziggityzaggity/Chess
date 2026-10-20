@@ -98,6 +98,8 @@ export interface UseChessGame {
   botError: string | null;
   /** Move-server moves left this hour, once the server has answered. */
   serverMovesLeft: number | null;
+  /** The depth the move server searched last (it may cap the requested depth). */
+  serverDepth: number | null;
   manualResult: ManualResult | null;
   onSquareClick: (square: number) => void;
   choosePromotion: (piece: PromoPiece) => void;
@@ -141,6 +143,7 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
   const [botThinking, setBotThinking] = useState(false);
   const [botError, setBotError] = useState<string | null>(null);
   const [serverMovesLeft, setServerMovesLeft] = useState<number | null>(null);
+  const [serverDepth, setServerDepth] = useState<number | null>(null);
   const [manualResult, setManualResult] = useState<ManualResult | null>(null);
 
   useEffect(() => {
@@ -342,7 +345,10 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
         const uci = await chooseBotMove(engine, game, bot, {
           signal: controller.signal,
           getAccessToken,
-          onServerMove: (answer) => setServerMovesLeft(answer.remaining),
+          onServerMove: (answer) => {
+            setServerMovesLeft(answer.remaining);
+            setServerDepth(answer.depth);
+          },
         });
         if (controller.signal.aborted) return;
         if (uci && game.fen() === fen && game.ply() === ply && !game.canRedo()) {
@@ -382,6 +388,7 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
     botThinking,
     botError,
     serverMovesLeft,
+    serverDepth,
     manualResult,
     onSquareClick,
     choosePromotion,

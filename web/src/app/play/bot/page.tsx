@@ -264,7 +264,7 @@ export default function BotSetupPage() {
                   id: "server",
                   name: "On our servers",
                   detail: user
-                    ? `Any depth, quickly · ${SERVER_MOVES_PER_HOUR} moves an hour`
+                    ? `Faster searches · ${SERVER_MOVES_PER_HOUR} moves an hour`
                     : `Sign in to use · ${SERVER_MOVES_PER_HOUR} moves an hour`,
                   enabled: !!user,
                 },
