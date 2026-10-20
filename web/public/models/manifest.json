@@ -19,6 +19,42 @@
       "epochs_run": 6,
       "training_finished": true,
       "exported_from": "checkpoint"
+    },
+    {
+      "id": "cnn-medium",
+      "family": "convolutional",
+      "size": "medium",
+      "file": "value_net_medium.onnx",
+      "blocks": 6,
+      "channels": 64,
+      "parameters": 719747,
+      "input": "planes",
+      "output": "wdl_logits",
+      "encoding": "pychess-19plane-stm-v1",
+      "label": "Convolutional (medium)",
+      "val_log_loss": 0.9879,
+      "best_epoch": 7,
+      "epochs_run": 11,
+      "training_finished": true,
+      "exported_from": "checkpoint"
+    },
+    {
+      "id": "cnn-large",
+      "family": "convolutional",
+      "size": "large",
+      "file": "value_net_large.onnx",
+      "blocks": 8,
+      "channels": 96,
+      "parameters": 1612579,
+      "input": "planes",
+      "output": "wdl_logits",
+      "encoding": "pychess-19plane-stm-v1",
+      "label": "Convolutional (large)",
+      "val_log_loss": 0.9893,
+      "best_epoch": 7,
+      "epochs_run": 11,
+      "training_finished": true,
+      "exported_from": "checkpoint"
     }
   ]
 }
