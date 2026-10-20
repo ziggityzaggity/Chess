@@ -108,7 +108,10 @@ function GameScreen() {
   };
   const opponent = {
     name: mode === "bot" ? botName(bot) : "Black",
-    tag: mode === "bot" ? `${botTagline(bot)} · ${playerColor === 0 ? "Black" : "White"}` : "Pass-and-play",
+    tag:
+      mode === "bot"
+        ? `${botTagline(bot)}${game.serverMovesLeft != null ? ` · ${game.serverMovesLeft} moves left this hour` : ""} · ${playerColor === 0 ? "Black" : "White"}`
+        : "Pass-and-play",
     initials: undefined as string | undefined,
   };
 

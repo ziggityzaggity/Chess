@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadEngine, type ChessGame, type EngineModule } from "./engine";
 import { chooseBotMove } from "./bot";
+import { getSupabase } from "./supabase/client";
 import { botQuery, DEFAULT_BOT, type BotSpec } from "./bots";
 
 export type EngineStatus = "loading" | "ready" | "error";
@@ -95,6 +96,8 @@ export interface UseChessGame {
   botThinking: boolean;
   /** Why the bot could not move (e.g. its model failed to load), if it couldn't. */
   botError: string | null;
+  /** Move-server moves left this hour, once the server has answered. */
+  serverMovesLeft: number | null;
   manualResult: ManualResult | null;
   onSquareClick: (square: number) => void;
   choosePromotion: (piece: PromoPiece) => void;
@@ -108,6 +111,14 @@ export interface UseChessGame {
   flip: () => void;
   resign: () => void;
   agreeDraw: () => void;
+}
+
+/** The signed-in player's Supabase access token (refreshed by supabase-js when needed). */
+async function getAccessToken(): Promise<string | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
 }
 
 export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
@@ -129,6 +140,7 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
   const [promotion, setPromotion] = useState<PendingPromotion | null>(null);
   const [botThinking, setBotThinking] = useState(false);
   const [botError, setBotError] = useState<string | null>(null);
+  const [serverMovesLeft, setServerMovesLeft] = useState<number | null>(null);
   const [manualResult, setManualResult] = useState<ManualResult | null>(null);
 
   useEffect(() => {
@@ -327,7 +339,11 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
       const fen = game.fen();
       const ply = game.ply();
       try {
-        const uci = await chooseBotMove(engine, game, bot, { signal: controller.signal });
+        const uci = await chooseBotMove(engine, game, bot, {
+          signal: controller.signal,
+          getAccessToken,
+          onServerMove: (answer) => setServerMovesLeft(answer.remaining),
+        });
         if (controller.signal.aborted) return;
         if (uci && game.fen() === fen && game.ply() === ply && !game.canRedo()) {
           play(
@@ -365,6 +381,7 @@ export function useChessGame(options: UseChessGameOptions = {}): UseChessGame {
     botColor,
     botThinking,
     botError,
+    serverMovesLeft,
     manualResult,
     onSquareClick,
     choosePromotion,

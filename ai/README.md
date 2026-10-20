@@ -81,7 +81,7 @@ file it imported.
 **Locally.**
 
 ```sh
-pip install ".[torch]" matplotlib pandas scikit-learn jupyter onnxruntime   # from the repo root
+pip install ".[torch]" matplotlib pandas scikit-learn jupyter onnx onnxscript onnxruntime   # from the repo root
 jupyter notebook ai/chess_value_network.ipynb
 ```
 

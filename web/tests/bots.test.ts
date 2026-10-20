@@ -213,7 +213,9 @@ describe("bot settings", () => {
     expect(parseBotSpec(params("bot=minimax"))).toEqual({ family: "greedy", depth: 2 });
     expect(parseBotSpec(params("bot=greedy&depth=3"))).toEqual({ family: "greedy", depth: 3 });
     expect(parseBotSpec(params("bot=cnn&size=large&depth=2"))).toEqual({ family: "cnn", size: "large", depth: 2 });
-    expect(parseBotSpec(params("bot=cnn&size=huge&depth=9"))).toEqual({ family: "cnn", size: "small", depth: 1 });
+    expect(parseBotSpec(params("bot=cnn&size=huge&depth=9"))).toEqual({ family: "cnn", size: "small", depth: 2 });
+    expect(parseBotSpec(params("bot=cnn&size=medium"))).toEqual({ family: "cnn", size: "medium", depth: 2 });
+    expect(parseBotSpec(params("bot=cnn&size=large"))).toEqual({ family: "cnn", size: "large", depth: 1 });
     expect(parseBotSpec(params(""))).toEqual({ family: "greedy", depth: 1 });
   });
 

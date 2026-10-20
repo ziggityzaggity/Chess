@@ -20,6 +20,7 @@ on:
       - "pyproject.toml"
       - "ai/data/**"
       - "ai/*.py"
+      - "serve/**"
       - ".github/workflows/python-engine.yml"
   pull_request:
     paths:
@@ -29,6 +30,7 @@ on:
       - "pyproject.toml"
       - "ai/data/**"
       - "ai/*.py"
+      - "serve/**"
       - ".github/workflows/python-engine.yml"
   workflow_dispatch:
 
@@ -56,9 +58,9 @@ jobs:
       - name: Build and install chess_engine
         run: pip install -v ".[test]"
       - name: Install the notebook's training dependencies
-        run: pip install pandas scikit-learn onnx onnxscript onnxruntime
-      - name: Tests (engine bindings, training-data selection, training module)
-        run: pytest -q bindings/python/tests ai/data ai/test_value_training.py
+        run: pip install pandas scikit-learn onnx onnxscript onnxruntime "fastapi[standard]==0.142.2" httpx
+      - name: Tests (engine bindings, training-data selection, training module, move server)
+        run: pytest -q bindings/python/tests ai/data ai/test_value_training.py serve
 
   cuda:
     runs-on: ubuntu-latest
