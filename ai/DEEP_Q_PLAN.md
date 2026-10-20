@@ -11,8 +11,14 @@ This document covers:
 - how the bots will be evaluated;
 - the order to build things in.
 
-The choices marked **open question** need an answer before work starts (see
-the end).
+**Decisions so far** (from review of the first draft):
+- **Formulation:** train **both** Q-function formulations and compare them. The
+  afterstate network ships to the web app.
+- **Prior:** start from a **heuristic prior**: material plus pieces in danger (ours
+  and theirs) and control of the centre. It replaces the material-only prior
+  (section 7).
+- **Compute:** training runs on **Modal** (section 10).
+- **Scope:** **small first**. Medium and large come only once small works.
 
 ---
 
@@ -36,7 +42,7 @@ target(s′) = result                        if s′ ends the game (mate, stalem
            = 1 − max_{a′} Q(s′, a′)        otherwise   (the opponent replies as well as it can)
 ```
 
-## 2. Formulation: what the network outputs **(open question)**
+## 2. Formulation: what the network outputs (decided: both, compared)
 
 ### Option A: Afterstate Q-network (recommended)
 
@@ -83,9 +89,26 @@ target(s′) = result                        if s′ ends the game (mate, stalem
   - Depth > 1 needs a separate value estimate anyway: `max_a Q(s, a)` stands in for
     `V(s)`, and it works but is noisier.
 
-**Recommendation: A.** It ships to the existing web app unchanged, and it fits the
-engine's batched expand-and-evaluate design. B can be a later experiment, trained
-with the same buffer and loop.
+**Decision: both, with A shipped.**
+- **A is the bot players meet.** It ships to the existing web app unchanged.
+- **B is the comparison.** It is trained with the same self-play loop, buffer,
+  prior, budget and opponents, and is evaluated with the same matches. The notebook
+  reports A against B:
+  - Elo against Greedy and the CNNs, for each position played and each GPU-hour;
+  - tactics-suite score;
+  - training stability.
+- **What B needs that A doesn't:**
+  - **A move-index encoding.** It uses the 8×8×73 AlphaZero layout, implemented
+    once in `core/` so C++, CUDA and Python agree.
+  - **Batched move→index on the GPU.** It is built from the `moves` tensor that
+    `gpu.expand` already returns.
+  - **A replay buffer that also stores the move index.**
+  - **A policy-style head.** It is a 1×1 convolution to 73 planes, sharing the same
+    residual tower, so the comparison is about the formulation, not the architecture.
+  - **Dueling heads.** They apply only here, and are tested as an ablation.
+- **Deploying B is out of scope for now.** If B wins clearly, deploying it is a
+  separate piece of work: a new ONNX output and a browser search that reads the
+  head.
 
 ## 3. Value head and reward
 
@@ -173,20 +196,68 @@ replay buffer as it goes.
 - **Sizes.** Reuse `SIZES`: small, medium and large are 3/6/8 residual blocks with
   32/64/96 channels. Same parameter counts, so comparisons are clean and the web app
   needs no new size options.
-- **Initialisation (open question).**
-  - **From scratch with the material prior.** The prior is the frozen linear layer
-    already in `ValueNet`: an untrained net then *is* the material model.
-    - Games aren't random from day one, so mates and captures happen and rewards
-      appear.
-    - It is still "learning by itself": the prior is a 12-number piece-value table.
-  - **Pure scratch, no prior.** The most honest version of "self-taught". Early
-    games are nearly random and end by the move cap, so the reward signal is very
-    sparse. It needs a curriculum (below) and much more compute.
-  - **Warm start from the trained CNN.** Fastest by far, and almost certainly the
-    strongest. But the bot then isn't really "learning by itself", and early on it
-    mostly inherits the CNN's play.
-  - **Recommendation:** material prior, no CNN warm start. The web description
-    ("Learns by playing against itself instead of studying master games") stays true.
+- **Initialisation (decided): a fresh network with a heuristic prior.** The CNN's
+  material prior is a frozen linear layer on 12 piece counts. With its last layer
+  at zero, an untrained net *is* the material model. Deep Q extends this to a
+  **heuristic prior**: a small linear layer on hand-made features, added to the
+  network's logits. Games are sensible from the first step: captures, mates and
+  centre play happen, so rewards appear early. The web description ("Learns by
+  playing against itself instead of studying master games") stays true, because
+  the network itself starts untrained.
+
+### 7a. The heuristic features
+
+All features are counted from the side to move's point of view, "us" against
+"them", like the input planes.
+
+| Feature | Definition | Values |
+|---|---|---|
+| Material | Piece counts, 6 types × 2 sides (the current prior) | 12 counts |
+| Our pieces in danger | Our pieces attacked by them and either undefended or attacked by a cheaper piece. Summed in pawn units, so a hanging queen counts 9. | 1 number, plus a count |
+| Their pieces in danger | The same, for their pieces we attack | 1 number, plus a count |
+| Centre occupation | Our pieces and their pieces on d4, e4, d5 and e5 | 2 counts |
+| Centre control | Number of our attacks and their attacks on those four squares | 2 counts |
+| Optional: extended centre | The same, on the 16 squares c3–f6 | 4 counts |
+
+**Where they are computed.** In C++, in `core/encode.hpp`, from the
+`isAttacked` logic in `core/chess.hpp`.
+- An `attackers(square, colour)` count and a cheapest-attacker lookup are needed
+  for "in danger" and "centre control".
+- That one header is compiled into all three engines: the Python CPU module, the
+  CUDA kernels and the browser's WASM. The features are therefore computed
+  identically in training, self-play, the move server and the browser.
+
+**How they reach the network.** Two options:
+1. **Extra input planes (recommended).** Add 4 planes to the encoding:
+   - squares we attack;
+   - squares they attack;
+   - our pieces in danger;
+   - their pieces in danger.
+
+   The prior's scalar features are sums over these planes and the piece planes. The
+   CNN also gets the attack maps directly, which helps it learn tactics.
+   - **Cost.** A new encoding id (`pychess-23plane-stm-v1`). The WASM encoder must be
+     rebuilt, and the web app must pick the encoding from each manifest entry. The
+     Convolutional models keep 19 planes.
+2. **Features computed only inside the prior.** Leave the 19 planes alone and
+   compute the scalars in Python/CUDA beside the encoder.
+   - **Problem.** The ONNX model would then need a second input, and the browser
+     would need a second encoder call.
+   - **Verdict.** It is simpler in training but awkward to deploy.
+
+**Weights.** The prior's weights must not be fitted to master-game results, or
+"self-taught" would no longer be true. Instead:
+- **Start from hand-set values.** Use classical engine values on a logit scale:
+  piece values 1/3/3/5/9, a piece in danger costing about half its value, and a
+  small bonus per centre square.
+- **Fine-tune them.** Unlike the CNN's frozen material layer, these weights are
+  **trainable at a lower learning rate** (0.1×), so self-play can correct a
+  hand-set value that is wrong.
+- **Setting.** `prior = "material" | "heuristic" | "none"`, so the effect of the
+  prior can be measured as an ablation.
+
+**Shaping.** The same features give the potential Φ for the optional reward
+shaping (section 3). Then one definition of "a good position" is used everywhere.
 - **Curriculum.** Optionally start a share of games from endgame positions:
   - random KQK, KRK and KPK positions, which are easy to generate;
   - endgames sampled from the PGNs.
@@ -208,9 +279,13 @@ These follow the pattern of `Config`/`PROFILES` in `value_training.py`. There ar
 
 | Group | Setting | Default (gpu) | Notes |
 |---|---|---|---|
-| Model | `size` | `medium` | small / medium / large |
+| Model | `size` | `small` | small / medium / large |
+|  | `formulation` | `afterstate` | `afterstate` or `action_head` |
 |  | `head` | `wdl` | `wdl` or `scalar` |
-|  | `material_prior` | `True` |  |
+|  | `prior` | `heuristic` | `heuristic`, `material` or `none` |
+|  | `prior_lr_scale` | 0.1 | 0 = frozen hand-set weights |
+|  | `planes` | 23 | 19 = the CNN encoding, 23 = with the heuristic planes |
+|  | `dueling` | `False` | action-head only |
 |  | `init_from` | `None` | path to a checkpoint for warm start |
 | Target | `gamma` | 0.995 |  |
 |  | `n_step` | 5 |  |
@@ -266,7 +341,32 @@ to measure.
 6. **Same graphics as the CNN notebook**, where they apply. The notebook's charts
    stay in the same style.
 
-## 10. Compute budget **(open question)**
+## 10. Compute budget (decided: Modal)
+
+**How training runs on Modal.** A new entry point, `ai/dqn_modal.py`, runs it the
+way `serve/modal_app.py` runs the move server:
+
+- **Command.** `modal run --detach ai/dqn_modal.py --size small --formulation afterstate`
+  trains on a Modal GPU. `--detach` keeps the run going after your terminal closes.
+- **Image.** Torch with CUDA, plus the engine built *with* its CUDA kernels, so
+  self-play runs on the GPU.
+- **Storage.** A **Modal Volume** (`pychess-dqn`) holds the checkpoints, the replay
+  buffer snapshot and the metrics. A run that hits the function timeout (up to 24 h)
+  or is pre-empted resumes from the volume with the same command.
+- **Results.**
+  - `modal volume get pychess-dqn …` downloads checkpoints and metrics.
+  - The notebook reads the metrics for its charts and evaluates checkpoints
+    locally or on Modal.
+- **GPU choice.**
+  - **Small:** an L4 or A10G is plenty.
+  - **Medium/large:** an A100 cuts wall-clock time by about 3×.
+  - Set it with `PYCHESS_TRAIN_GPU`, like `PYCHESS_GPU` for the move server.
+- **Cost guard.** `--max-hours` stops a run cleanly, with a checkpoint, at a
+  budget.
+- **Billing.** Modal needs a payment method on the account before it runs **any**
+  GPU function. That is the same message the L4 move server showed, and there is no
+  CPU workaround for training at a useful speed. A CPU profile on Modal or locally
+  is only for smoke tests.
 
 These are order-of-magnitude figures; phase 0 measures them properly.
 
@@ -288,46 +388,52 @@ These are order-of-magnitude figures; phase 0 measures them properly.
 
 | File | What |
 |---|---|
+| `ai/dqn_modal.py` | Modal entry point: GPU image, volume, detached resumable runs, `--max-hours` |
 | `ai/dqn_training.py` | The module: `DQNConfig` and profiles, `ReplayBuffer`, `SelfPlay`, the Q-learning loss and targets, the training loop with checkpoints, evaluation. It imports `ValueNet`, `SIZES`, the match helpers and the export from `value_training.py`, without copying them. |
 | `ai/deep_q_network.ipynb` | The notebook: concepts, then setup, training, charts and export. Same readable style as `chess_value_network.ipynb`, with code kept in the module. |
 | `ai/test_dqn_training.py` | Fast CPU tests:<br>• the target sign and negamax;<br>• terminal handling;<br>• n-step accumulation;<br>• buffer wraparound;<br>• Double DQN selection;<br>• a smoke run that learns mate-in-one on a tiny net. |
-| `core/` + bindings | A batched Zobrist hash (CPU and CUDA) for repetition detection, if the Python fallback is too slow. |
+| `core/` + bindings | <ul><li>Attack counts and the 23-plane heuristic encoding, available on the CPU, in CUDA and in WASM.</li><li>The 8×8×73 move index, for the action-head network.</li><li>A batched Zobrist hash, for repetition detection.</li></ul> |
 | `web/src/lib/bots.ts` | Make `dqn` playable: sizes from the manifest (`dqn-small`, …), "Still training…" for sizes not yet deployed, same depth slider. |
 | `web/public/models/manifest.json` | `family: "deep-q"` entries; the ONNX files reuse `export_model`. |
 
 ## 12. Milestones
 
-0. **Harness (½ day).**
-   - Build the self-play loop, writing to a buffer, using a random or material
-     policy.
-   - Measure throughput on a CPU and on a GPU.
-   - Add repetition detection.
-   - Tests pass.
-1. **Sanity: endgames (1 day).**
-   - Train the small net only on KQK/KRK starts.
-   - Pass condition: it mates reliably against random defence within 50 moves, and
+0. **Engine features.**
+   - Add attack counts, the heuristic planes and the move index in `core/`.
+   - Check them against a slow Python reference on random positions, on the CPU, in
+     CUDA (emulated) and in WASM.
+   - Add repetition hashing.
+1. **Harness.**
+   - Build `dqn_training.py` for both formulations: the self-play loop, writing to a
+     buffer, with a random or heuristic-prior policy.
+   - Add `dqn_modal.py`.
+   - Measure throughput on Modal.
+   - CPU tests pass.
+2. **Sanity: endgames.**
+   - Train the small nets, both formulations, only on KQK/KRK starts.
+   - Pass condition: they mate reliably against random defence within 50 moves, and
      the tactics suite reaches 100% on mate-in-1.
-   - This shows the target, sign and terminal logic are right before spending GPU
-     hours.
-2. **Full self-play, small (1–2 days of runs).**
-   - Train the small net with the curriculum.
+   - This shows the target, sign and terminal logic are right before spending real
+     GPU hours.
+3. **Full self-play, small: the first deliverable.**
+   - Train both small nets with the curriculum.
    - Targets: beat Jester at about 100%, then Greedy depth 1.
    - Tune n-step, the replay ratio and the temperature here.
-3. **Ablations.** Short runs, each comparing one choice:
+   - Write up the afterstate-against-action-head comparison in the notebook.
+4. **Ablations.** Short small-net runs, each comparing one choice:
+   - prior: none, material or heuristic;
    - Double DQN on and off;
    - n = 1, 5 and Monte Carlo;
    - shaping on and off;
    - PER;
-   - target depth 1 and 2.
-
-   Report them in the notebook.
-4. **Medium and large.** Train them with the best settings, on Colab or Modal.
-5. **Ship.**
-   - Export to ONNX and add the models to the manifest.
-   - Enable Deep Q in the web app, with "Still training…" for sizes not yet
-     deployed.
-   - Write a short report comparing Deep Q with the Convolutional bots, like the CNN
-     report.
+   - target depth 1 and 2;
+   - dueling (action-head only).
+5. **Ship small.**
+   - Export the afterstate network to ONNX and add it to the manifest.
+   - Enable Deep Q in the web app, with "Still training…" for medium and large.
+   - The web app reads each model's encoding (19 or 23 planes) from the manifest.
+6. **Medium and large**, with the best settings, only once small works. After
+   that, write a short report comparing Deep Q with the Convolutional bots.
 
 ## 13. Main risks
 
@@ -341,12 +447,15 @@ These are order-of-magnitude figures; phase 0 measures them properly.
 
 ## Open questions
 
-1. **Formulation.** Afterstate Q-network (recommended: it ships to the web app
-   unchanged) or the textbook action-head DQN?
-2. **From scratch?** Material prior only (recommended), pure scratch with no prior,
-   or a warm start from the trained CNN? And may self-play *start* from positions
-   taken from the PGN games? That uses no results, only positions.
-3. **Compute.** Where will this train (free Colab T4, Colab Pro, your GPU, Modal),
-   and for roughly how many GPU-hours per model?
-4. **Scope.** All three sizes, or small first and the others only if it works? And
-   should the web app ship Deep Q as soon as one size beats Greedy?
+1. **Heuristic planes in the input.** Adding the 4 heuristic planes to the input is
+   recommended. It means a 23-plane encoding for Deep Q, while the CNN models keep
+   19 planes. The alternative is to keep the input at 19 planes and use the features
+   only in the prior. Which?
+2. **Prior weights.** Hand-set values that are trainable at a low learning rate is
+   the recommendation. Or should the hand-set values stay frozen?
+3. **PGN starting positions.** May self-play *start* from positions taken from the
+   PGN games (positions only, never their results)?
+4. **GPU budget on Modal.** Roughly how many GPU-hours (or dollars) per small run?
+   That sets `total_positions` and `--max-hours`.
+5. **Shipping.** Ship small to the web app as soon as it beats Greedy depth 1, or
+   wait until the comparison and ablations are done?
