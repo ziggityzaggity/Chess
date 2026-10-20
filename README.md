@@ -15,7 +15,7 @@ The same core is exposed to Python through pybind11 in ```/bindings/python/``` (
 - batched move generation;
 - CUDA kernels in ```/core/gpu/``` that run the batched work on PyTorch tensors on the GPU.
 
-```/ai/``` holds the machine-learning workflow for the neural-network opponents. It has 10,000 curated master games, a notebook (```/ai/chess_value_network.ipynb```) and its training module (```/ai/value_training.py```). The notebook trains PyTorch CNNs in three sizes to predict who wins from any position, with checkpoints after every epoch. The bots play by searching 1–3 moves ahead and choosing the move the network rates best. In the web app they run in the browser with onnxruntime-web, alongside the Jester (random) and Greedy (material) bots.
+```/ai/``` holds the machine-learning workflow for the neural-network opponents. It has 10,000 curated master games, a notebook (```/ai/chess_value_network.ipynb```) and its training module (```/ai/value_training.py```). The notebook trains PyTorch CNNs in three sizes to predict who wins from any position, with checkpoints after every epoch. The bots play by searching 1–3 moves ahead and choosing the move the network rates best. In the web app they run in the browser with onnxruntime-web, alongside the Jester (random) and Greedy (material) bots. Signed-in players can also play the large model on a GPU server (```/serve/```, on Modal) at any depth, up to 200 moves an hour.
 
 Future developments include new different architectures for these chess-playing agents, including but not limited to graph neural networks and deep q learning networks.
 
