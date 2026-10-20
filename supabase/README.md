@@ -20,3 +20,8 @@ enforces access.
 All tables have RLS: profiles are readable by any signed-in player (for friend
 search) and writable only by their owner; games and friendships are only
 visible to / editable by the users involved.
+
+`migrations/20261020000000_model_server_quota.sql` adds the hourly quota for the
+move server (`serve/`): `consume_model_move()` spends one of a signed-in,
+non-anonymous player's 200 moves per rolling hour and is the server's only
+access to the database. Its log, `model_move_requests`, has no client grants.
