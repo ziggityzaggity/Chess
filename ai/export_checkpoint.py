@@ -16,6 +16,14 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    import chess_engine  # noqa: F401  (the C++ engine, built into this Python)
+except ImportError:
+    sys.exit(f"The chess engine (chess_engine) is not installed in this Python:\n  {sys.executable}\n"
+             "Set up the development environment from the repository root and use its Python:\n"
+             "  Windows:      scripts\\setup-dev.ps1, then .venv\\Scripts\\Activate.ps1\n"
+             "  macOS/Linux:  scripts/setup-dev.sh, then source .venv/bin/activate\n"
+             "(or `pip install .` from the repository root into the Python you are using).")
 import value_training as vt  # noqa: E402
 
 
