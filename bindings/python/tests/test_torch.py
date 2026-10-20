@@ -66,9 +66,9 @@ def fake_gpu(monkeypatch):
     real kernels rely on; the kernels themselves are covered by the C++
     emulation test (core/gpu/emulation_test.cpp).
     """
-    def enc(bp, n, op, device, stream):
+    def enc(bp, n, op, device, stream, planes=19):
         boards = _array(bp, n * 72, ctypes.c_uint8, np.uint8).reshape(n, 72)
-        _array(op, n * 19 * 64, ctypes.c_float, np.float32)[:] = ce.encode_boards(boards).ravel()
+        _array(op, n * planes * 64, ctypes.c_float, np.float32)[:] = ce.encode_boards(boards, planes=planes).ravel()
 
     def count(bp, n, cp, sp, device, stream):
         boards = _array(bp, n * 72, ctypes.c_uint8, np.uint8).reshape(n, 72)

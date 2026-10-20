@@ -81,10 +81,17 @@ Board boardFromFen(const std::string& fen) {
     return b;
 }
 
-// Encoding of one board as a (19, 8, 8) float32 array.
-py::array_t<float> encodeOne(const Board& b) {
-    py::array_t<float> out({NUM_PLANES, 8, 8});
-    encodeBoard(b, out.mutable_data());
+int checkPlanes(int planes) {
+    if (!validPlaneCount(planes))
+        throw py::value_error("planes must be " + std::to_string(NUM_PLANES) + " or " +
+                              std::to_string(HEURISTIC_PLANES) + ", got " + std::to_string(planes));
+    return planes;
+}
+
+// Encoding of one board as a (planes, 8, 8) float32 array.
+py::array_t<float> encodeOne(const Board& b, int planes) {
+    py::array_t<float> out({checkPlanes(planes), 8, 8});
+    encodeBoard(b, out.mutable_data(), planes);
     return out;
 }
 
@@ -109,10 +116,11 @@ PYBIND11_MODULE(_core, m) {
     m.attr("BLACK") = static_cast<int>(BLACK);
     m.attr("BOARD_BYTES") = BOARD_BYTES;
     m.attr("NUM_PLANES") = NUM_PLANES;
+    m.attr("HEURISTIC_PLANES") = HEURISTIC_PLANES;
     m.attr("CUDA_COMPILED") = static_cast<bool>(CHESS_HAS_CUDA);
     {
         py::list names;
-        for (int p = 0; p < NUM_PLANES; ++p) names.append(planeName(p));
+        for (int p = 0; p < HEURISTIC_PLANES; ++p) names.append(planeName(p));
         m.attr("PLANE_NAMES") = names;
     }
 
@@ -212,8 +220,10 @@ PYBIND11_MODULE(_core, m) {
         .def("pgn", &Game::pgnMovetext, "SAN movetext of the moves played.")
         .def("board_array", [](const Game& g) { return boardArray(g.board()); },
              "The position as a (72,) uint8 chess::Board — the compact state used by the batch API.")
-        .def("encode", [](const Game& g) { return encodeOne(g.board()); },
-             "The position as network input: float32 array of shape (19, 8, 8), from the side-to-move's view.")
+        .def("encode", [](const Game& g, int planes) { return encodeOne(g.board(), planes); },
+             py::arg("planes") = NUM_PLANES,
+             "The position as network input: float32 array of shape (planes, 8, 8), from the side-to-move's "
+             "view. planes=19 is the standard encoding, 23 adds the heuristic planes.")
         .def("children", [](const Game& g) { return childrenOf(g.board()); },
              "(boards, moves): every legal move and the (N, 72) positions they lead to.")
         .def("copy", [](const Game& g) { return Game(g); })
@@ -259,18 +269,20 @@ PYBIND11_MODULE(_core, m) {
           }, py::arg("fen"), py::arg("depth"), "Leaf-node count of the move tree (depth-first, one thread).");
 
     // ------------------------------------------------------------ batch (numpy)
-    m.def("encode_boards", [](const U8Array& a, int threads) {
+    m.def("encode_boards", [](const U8Array& a, int threads, int planes) {
               BoardSpan s(a);
-              py::array_t<float> out({static_cast<py::ssize_t>(s.n), static_cast<py::ssize_t>(NUM_PLANES),
+              checkPlanes(planes);
+              py::array_t<float> out({static_cast<py::ssize_t>(s.n), static_cast<py::ssize_t>(planes),
                                       py::ssize_t(8), py::ssize_t(8)});
               float* o = out.mutable_data();
               {
                   py::gil_scoped_release nogil;
-                  batch::encode(s.data, s.n, o, threads);
+                  batch::encode(s.data, s.n, o, threads, planes);
               }
               return out;
-          }, py::arg("boards"), py::arg("threads") = 0,
-          "Encode (N, 72) boards into network input of shape (N, 19, 8, 8), float32.");
+          }, py::arg("boards"), py::arg("threads") = 0, py::arg("planes") = NUM_PLANES,
+          "Encode (N, 72) boards into network input of shape (N, planes, 8, 8), float32. "
+          "planes=19 is the standard encoding, 23 adds the heuristic planes.");
 
     m.def("count_legal", [](const U8Array& a, int threads) {
               BoardSpan s(a);
@@ -411,10 +423,14 @@ PYBIND11_MODULE(_core, m) {
     m.def("cuda_device_count", &gpu::deviceCount);
     m.def("cuda_device_name", &gpu::deviceName, py::arg("device") = 0);
     m.def("cuda_build_info", &gpu::buildInfo);
-    m.def("cuda_encode", [](uintptr_t boards, int64_t n, uintptr_t out, int device, uintptr_t stream) {
+    m.def("cuda_encode", [](uintptr_t boards, int64_t n, uintptr_t out, int device, uintptr_t stream,
+                            int planes) {
+              checkPlanes(planes);
               py::gil_scoped_release nogil;
-              gpu::encode(reinterpret_cast<const void*>(boards), n, reinterpret_cast<float*>(out), device, stream);
+              gpu::encode(reinterpret_cast<const void*>(boards), n, reinterpret_cast<float*>(out), device, stream,
+                          planes);
           }, py::arg("boards_ptr"), py::arg("n"), py::arg("out_ptr"), py::arg("device") = 0, py::arg("stream") = 0,
+          py::arg("planes") = NUM_PLANES,
           "Low level: encode n device boards into a device float32 buffer. Prefer chess_engine.gpu.encode().");
     m.def("cuda_count_legal", [](uintptr_t boards, int64_t n, uintptr_t counts, uintptr_t status,
                                  int device, uintptr_t stream) {

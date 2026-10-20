@@ -23,6 +23,21 @@
 //   plane  18     all ones                     (marks the board inside zero
 //                                               padding for the convolutions)
 //
+// The heuristic encoding (HEURISTIC_PLANES = 23, used by the Deep Q models)
+// appends four hand-made features about the position's tactics:
+//
+//   plane  19     our attacks on each square    (attacker count / 4, max 1)
+//   plane  20     their attacks on each square
+//   plane  21     our pieces in danger          (1.0 on the piece's square)
+//   plane  22     their pieces in danger
+//
+// A piece is "in danger" when the other side attacks it and either nothing
+// defends it or its cheapest attacker is worth less than it (a pawn attacking
+// a knight). A king in check is in danger. Attacks are pseudo-legal: pins and
+// x-rays are ignored, which is what makes the features cheap. Centre control
+// is not a separate plane: the network reads it from planes 19-20 on d4, e4,
+// d5 and e5.
+//
 // Piece identity is categorical, so it is one-hot encoded: 12 binary planes,
 // never one "piece code" number (a code of 5 for a queen and 6 for a king
 // would falsely tell the model a king is "more" than a queen). "Empty" is the
@@ -59,9 +74,16 @@ static_assert(sizeof(Move) == 4, "Move must stay 4 bytes: (from, to, flag, promo
 // ----------------------------------------------------------------------------
 // Planes
 // ----------------------------------------------------------------------------
-constexpr int NUM_PLANES = 19;
+constexpr int NUM_PLANES = 19;                // the standard encoding
+constexpr int HEURISTIC_PLANES = 23;          // plus the four heuristic planes
 constexpr int PLANE_SIZE = 64;
 constexpr int ENCODED_FLOATS = NUM_PLANES * PLANE_SIZE;   // floats per position
+constexpr int HEURISTIC_FLOATS = HEURISTIC_PLANES * PLANE_SIZE;
+
+// The encodings a caller may ask for, by plane count.
+CHESS_HD inline constexpr bool validPlaneCount(int planes) {
+    return planes == NUM_PLANES || planes == HEURISTIC_PLANES;
+}
 
 enum Plane : int {
     PL_OUR_PIECES   = 0,    // + (type - 1): P=0 .. K=5
@@ -73,17 +95,22 @@ enum Plane : int {
     PL_EP           = 16,
     PL_HALFMOVE     = 17,
     PL_ONES         = 18,
+    PL_OUR_ATTACKS    = 19,
+    PL_THEIR_ATTACKS  = 20,
+    PL_OUR_DANGER     = 21,
+    PL_THEIR_DANGER   = 22,
 };
 
 inline const char* planeName(int p) {
-    static const char* names[NUM_PLANES] = {
+    static const char* names[HEURISTIC_PLANES] = {
         "our_pawn", "our_knight", "our_bishop", "our_rook", "our_queen", "our_king",
         "their_pawn", "their_knight", "their_bishop", "their_rook", "their_queen", "their_king",
         "our_castle_kingside", "our_castle_queenside",
         "their_castle_kingside", "their_castle_queenside",
         "en_passant", "halfmove_clock", "ones",
+        "our_attacks", "their_attacks", "our_pieces_in_danger", "their_pieces_in_danger",
     };
-    return (p >= 0 && p < NUM_PLANES) ? names[p] : "";
+    return (p >= 0 && p < HEURISTIC_PLANES) ? names[p] : "";
 }
 
 // The side to move, normalised: raw bytes from Python may hold any value in
@@ -110,6 +137,76 @@ CHESS_HD inline bool castleRight(const Board& b, Color who, bool kingSide) {
     return (b.castling & bit) != 0;
 }
 
+// ----------------------------------------------------------------------------
+// Heuristic features (planes 19-22)
+// ----------------------------------------------------------------------------
+// Piece values for "in danger": P N B R Q = 1 3 3 5 9; a king is worth more
+// than anything, so any attack on it counts.
+CHESS_HD inline int heuristicValue(int type) {
+    switch (type) {
+        case PAWN: return 1;   case KNIGHT: return 3; case BISHOP: return 3;
+        case ROOK: return 5;   case QUEEN: return 9;  case KING: return 100;
+        default:   return 0;
+    }
+}
+
+struct AttackInfo {
+    int count;      // pieces of the attacking colour that attack the square
+    int cheapest;   // heuristicValue() of the least valuable of them; 0 if none
+};
+
+// Who of colour `by` attacks square `s` (pseudo-legal: pins and x-rays are
+// ignored). The same scan as Board::isAttacked, but counting every attacker.
+CHESS_HD inline AttackInfo attackInfo(const Board& b, int s, Color by) {
+    AttackInfo a{0, 0};
+    auto add = [&](uint8_t p) {
+        const int v = heuristicValue(pieceType(p));
+        ++a.count;
+        if (a.cheapest == 0 || v < a.cheapest) a.cheapest = v;
+    };
+    const int r = rowOf(s), c = colOf(s);
+    const int pr = by == WHITE ? r + 1 : r - 1;          // the row an attacking pawn stands on
+    const uint8_t pawn = makePiece(by, PAWN);
+    if (onBoard(pr, c - 1) && b.sq[sqOf(pr, c - 1)] == pawn) add(pawn);
+    if (onBoard(pr, c + 1) && b.sq[sqOf(pr, c + 1)] == pawn) add(pawn);
+    const uint8_t kn = makePiece(by, KNIGHT), kg = makePiece(by, KING);
+    for (int k = 0; k < 8; ++k) {
+        const Step o = knightStep(k);
+        if (onBoard(r + o.dr, c + o.dc) && b.sq[sqOf(r + o.dr, c + o.dc)] == kn) add(kn);
+        const Step q = kingStep(k);
+        if (onBoard(r + q.dr, c + q.dc) && b.sq[sqOf(r + q.dr, c + q.dc)] == kg) add(kg);
+    }
+    for (int k = 0; k < 8; ++k) {
+        const bool diag = k >= 4;
+        const Step d = diag ? diagStep(k - 4) : orthStep(k);
+        int rr = r + d.dr, cc = c + d.dc;
+        while (onBoard(rr, cc)) {
+            const uint8_t p = b.sq[sqOf(rr, cc)];
+            if (p) {
+                const int t = pieceType(p);
+                if (validPiece(p) && pieceColor(p) == by &&
+                    (t == QUEEN || t == (diag ? BISHOP : ROOK))) add(p);
+                break;
+            }
+            rr += d.dr; cc += d.dc;
+        }
+    }
+    return a;
+}
+
+CHESS_HD inline float attackFeature(int count) { return (count >= 4 ? 4 : count) / 4.0f; }
+
+// 1.0 if the piece on board square `s` is in danger (see the header comment).
+CHESS_HD inline float dangerFeature(const Board& b, int s) {
+    const uint8_t p = b.sq[s];
+    if (!validPiece(p)) return 0.0f;
+    const Color owner = pieceColor(p);
+    const AttackInfo att = attackInfo(b, s, opp(owner));
+    if (att.count == 0) return 0.0f;
+    if (att.cheapest < heuristicValue(pieceType(p))) return 1.0f;
+    return attackInfo(b, s, owner).count == 0 ? 1.0f : 0.0f;
+}
+
 // One element of the encoding: the value of `plane` at view square `v`. The
 // CUDA encoder runs one thread per element, so writes are fully coalesced.
 CHESS_HD inline float planeValue(const Board& b, int plane, int v) {
@@ -130,16 +227,25 @@ CHESS_HD inline float planeValue(const Board& b, int plane, int v) {
         case PL_EP:        return (b.ep >= 0 && s == b.ep)        ? 1.0f : 0.0f;
         case PL_HALFMOVE:  return halfmoveFeature(b);
         case PL_ONES:      return 1.0f;
+        case PL_OUR_ATTACKS:   return attackFeature(attackInfo(b, s, us).count);
+        case PL_THEIR_ATTACKS: return attackFeature(attackInfo(b, s, opp(us)).count);
+        case PL_OUR_DANGER:
+        case PL_THEIR_DANGER: {
+            const uint8_t p = b.sq[s];
+            if (!validPiece(p) || (pieceColor(p) == us) != (plane == PL_OUR_DANGER)) return 0.0f;
+            return dangerFeature(b, s);
+        }
         default:           return 0.0f;
     }
 }
 
-// Whole-position encoder: writes ENCODED_FLOATS floats, plane-major
-// (out[plane * 64 + view_square]). Equivalent to calling planeValue() for
-// every element, but touches only occupied squares — the fast CPU path.
-CHESS_HD inline void encodeBoard(const Board& b, float* out) {
+// Whole-position encoder: writes planes * 64 floats (planes = NUM_PLANES or
+// HEURISTIC_PLANES), plane-major (out[plane * 64 + view_square]). Equivalent
+// to calling planeValue() for every element, but touches only occupied
+// squares where it can — the fast CPU path.
+CHESS_HD inline void encodeBoard(const Board& b, float* out, int planes = NUM_PLANES) {
     const Color us = sideToMove(b);
-    for (int i = 0; i < ENCODED_FLOATS; ++i) out[i] = 0.0f;
+    for (int i = 0; i < planes * PLANE_SIZE; ++i) out[i] = 0.0f;
     for (int s = 0; s < NSQ; ++s) {
         const uint8_t p = b.sq[s];
         if (!validPiece(p)) continue;
@@ -157,6 +263,16 @@ CHESS_HD inline void encodeBoard(const Board& b, float* out) {
     if (b.ep >= 0 && b.ep < NSQ) out[PL_EP * PLANE_SIZE + viewToBoard(b.ep, us)] = 1.0f;
     fill(PL_HALFMOVE, halfmoveFeature(b));
     fill(PL_ONES, 1.0f);
+    if (planes < HEURISTIC_PLANES) return;
+    for (int s = 0; s < NSQ; ++s) {
+        const int v = viewToBoard(s, us);
+        out[PL_OUR_ATTACKS * PLANE_SIZE + v]   = attackFeature(attackInfo(b, s, us).count);
+        out[PL_THEIR_ATTACKS * PLANE_SIZE + v] = attackFeature(attackInfo(b, s, opp(us)).count);
+        const uint8_t p = b.sq[s];
+        if (!validPiece(p)) continue;
+        const int plane = pieceColor(p) == us ? PL_OUR_DANGER : PL_THEIR_DANGER;
+        out[plane * PLANE_SIZE + v] = dangerFeature(b, s);
+    }
 }
 
 // ----------------------------------------------------------------------------

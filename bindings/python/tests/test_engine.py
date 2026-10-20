@@ -89,7 +89,7 @@ def test_board_bytes_are_deterministic():
 # ----------------------------------------------------------------------------- encoding
 def test_encoding_planes():
     x = ce.encode_boards(ce.startpos())[0]
-    assert ce.NUM_PLANES == 19 and len(ce.PLANE_NAMES) == 19
+    assert ce.NUM_PLANES == 19 and ce.HEURISTIC_PLANES == 23 and len(ce.PLANE_NAMES) == 23
     assert x[0].sum() == 8 and x[6].sum() == 8           # our / their pawns
     assert x[5, 7, 4] == 1 and x[11, 0, 4] == 1          # our king e1, their king e8
     assert all(x[p].sum() == 64 for p in range(12, 16))  # all castling rights

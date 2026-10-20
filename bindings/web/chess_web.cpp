@@ -23,6 +23,8 @@
 //   * expandBoards(bytes)  — the same for a batch of compact positions.
 //   * encodeBoards(bytes)  — network input planes (core/encode.hpp), exactly
 //                            what the value network was trained on.
+//   * encodeBoardsPlanes(bytes, planes) — the same with a chosen plane count:
+//                            23 adds the heuristic planes the Deep Q models use.
 
 #include "game.hpp"
 #include "encode.hpp"
@@ -92,13 +94,18 @@ val expandBoards(const val& bytes) {
     return r;
 }
 
-// Network input for each board: NUM_PLANES x 8 x 8 floats per board.
-val encodeBoards(const val& bytes) {
+// Network input for each board: planes x 8 x 8 floats per board, where
+// planes is NUM_PLANES (19) or HEURISTIC_PLANES (23, the Deep Q models).
+val encodeBoardsPlanes(const val& bytes, int planes) {
+    if (!validPlaneCount(planes)) planes = NUM_PLANES;
     const std::vector<Board> boards = boardsFromBytes(bytes);
-    std::vector<float> out(boards.size() * ENCODED_FLOATS);
-    for (size_t i = 0; i < boards.size(); ++i) encodeBoard(boards[i], &out[i * ENCODED_FLOATS]);
+    const size_t floats = static_cast<size_t>(planes) * PLANE_SIZE;
+    std::vector<float> out(boards.size() * floats);
+    for (size_t i = 0; i < boards.size(); ++i) encodeBoard(boards[i], &out[i * floats], planes);
     return toTyped("Float32Array", out);
 }
+
+val encodeBoards(const val& bytes) { return encodeBoardsPlanes(bytes, NUM_PLANES); }
 
 } // namespace
 
@@ -279,6 +286,8 @@ EMSCRIPTEN_BINDINGS(chess_module) {
         ;
     function("expandBoards", &expandBoards);
     function("encodeBoards", &encodeBoards);
+    function("encodeBoardsPlanes", &encodeBoardsPlanes);
     constant("BOARD_BYTES", BOARD_BYTES);
     constant("NUM_PLANES", NUM_PLANES);
+    constant("HEURISTIC_PLANES", HEURISTIC_PLANES);
 }

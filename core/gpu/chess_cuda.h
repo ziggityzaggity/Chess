@@ -26,8 +26,10 @@ int  deviceCount();
 std::string deviceName(int device);
 std::string buildInfo();                // toolkit version + compiled architectures
 
-// out[i] = encodeBoard(boards[i]); out holds n * 19 * 64 floats.
-void encode(const void* boards, int64_t n, float* out, int device, uintptr_t stream);
+// out[i] = encodeBoard(boards[i], planes); out holds n * planes * 64 floats,
+// planes = 19 (standard) or 23 (with the heuristic planes).
+void encode(const void* boards, int64_t n, float* out, int device, uintptr_t stream,
+            int planes = 19);
 
 // counts[i] = number of legal moves of boards[i]; status (may be null) gets
 // the chess::Status code of each board.

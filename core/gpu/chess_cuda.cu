@@ -79,11 +79,12 @@ __device__ __forceinline__ int64_t gridStride() {
 }
 
 __global__ void encodeKernel(const Board* __restrict__ boards, int64_t n,
-                             float* __restrict__ out) {
-    const int64_t total = n * ENCODED_FLOATS;
+                             float* __restrict__ out, int planes) {
+    const int floats = planes * PLANE_SIZE;
+    const int64_t total = n * floats;
     for (int64_t idx = globalThread(); idx < total; idx += gridStride()) {
-        const int64_t b = idx / ENCODED_FLOATS;
-        const int rem = static_cast<int>(idx - b * ENCODED_FLOATS);
+        const int64_t b = idx / floats;
+        const int rem = static_cast<int>(idx - b * floats);
         out[idx] = planeValue(boards[b], rem / PLANE_SIZE, rem % PLANE_SIZE);
     }
 }
@@ -152,12 +153,13 @@ std::string buildInfo() {
            std::to_string((CUDART_VERSION % 1000) / 10) + ", architectures " + CHESS_CUDA_ARCHS;
 }
 
-void encode(const void* boards, int64_t n, float* out, int device, uintptr_t stream) {
+void encode(const void* boards, int64_t n, float* out, int device, uintptr_t stream, int planes) {
     if (n <= 0) return;
+    if (!validPlaneCount(planes)) throw std::invalid_argument("encode: planes must be 19 or 23");
     DeviceGuard guard(device);
     auto s = reinterpret_cast<cudaStream_t>(stream);
-    CHESS_LAUNCH(encodeKernel, gridFor(n * ENCODED_FLOATS, ENCODE_BLOCK), ENCODE_BLOCK, s,
-                 static_cast<const Board*>(boards), n, out);
+    CHESS_LAUNCH(encodeKernel, gridFor(n * planes * PLANE_SIZE, ENCODE_BLOCK), ENCODE_BLOCK, s,
+                 static_cast<const Board*>(boards), n, out, planes);
     check(cudaGetLastError(), "encode kernel launch");
 }
 

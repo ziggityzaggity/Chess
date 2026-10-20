@@ -63,6 +63,11 @@ int main() {
     batch::encode(boards.data(), n, encCpu.data());
     CHECK(encGpu == encCpu);
 
+    std::vector<float> heurGpu(n * HEURISTIC_FLOATS), heurCpu(n * HEURISTIC_FLOATS);
+    gpu::encode(boards.data(), n, heurGpu.data(), 0, 0, HEURISTIC_PLANES);
+    batch::encode(boards.data(), n, heurCpu.data(), 0, HEURISTIC_PLANES);
+    CHECK(heurGpu == heurCpu);
+
     std::vector<int32_t> cGpu(n), cCpu(n);
     std::vector<uint8_t> sGpu(n), sCpu(n);
     gpu::countLegal(boards.data(), n, cGpu.data(), sGpu.data(), 0, 0);

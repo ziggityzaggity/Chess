@@ -33,6 +33,7 @@ from ._core import (  # noqa: F401  (re-exported API)
     BLACK,
     BOARD_BYTES,
     CUDA_COMPILED,
+    HEURISTIC_PLANES,
     NUM_PLANES,
     PLANE_NAMES,
     WHITE,

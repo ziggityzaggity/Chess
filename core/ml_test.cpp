@@ -196,6 +196,54 @@ static void testEncoding(const std::vector<Board>& positions) {
     CHECK(a[PL_OUR_OO * 64] == 0.0f && a[PL_OUR_OOO * 64] == 1.0f);   // black to move: "q" only
     CHECK(a[PL_THEIR_OO * 64] == 1.0f && a[PL_THEIR_OOO * 64] == 0.0f);
     CHECK(std::fabs(a[PL_HALFMOVE * 64] - 0.07f) < 1e-6f);
+
+    printf("[heuristic planes]\n");
+    // Per-element and per-board encoders agree on all 23 planes, and the first
+    // 19 are exactly the standard encoding.
+    std::vector<float> h(HEURISTIC_FLOATS);
+    mismatches = 0;
+    int prefix = 0;
+    for (const Board& b : positions) {
+        encodeBoard(b, h.data(), HEURISTIC_PLANES);
+        encodeBoard(b, buf.data());
+        for (int p = 0; p < HEURISTIC_PLANES; ++p)
+            for (int v = 0; v < 64; ++v)
+                if (h[p * 64 + v] != planeValue(b, p, v)) ++mismatches;
+        for (int k = 0; k < ENCODED_FLOATS; ++k) prefix += h[k] != buf[k];
+    }
+    CHECK(mismatches == 0);
+    CHECK(prefix == 0);
+
+    // White to move: the e5 knight is attacked by the d6 pawn (a cheaper
+    // piece), the e4 bishop by the h4 queen with no defender, and the king is
+    // in check from h4. Black's a8 rook hangs to the e4 bishop; the h4 queen
+    // and d6 pawn are not attacked.
+    auto at = [&](int p, const char* square) {      // value at a board square like "e4"
+        const int sq = sqOf('8' - square[1], square[0] - 'a');
+        return h[p * 64 + viewToBoard(sq, WHITE)];
+    };
+    encodeBoard(fromFen("r3k3/8/3p4/4N3/4B2q/8/8/4K3 w - - 0 1"), h.data(), HEURISTIC_PLANES);
+    CHECK(at(PL_OUR_DANGER, "e5") == 1.0f);
+    CHECK(at(PL_OUR_DANGER, "e4") == 1.0f);
+    CHECK(at(PL_OUR_DANGER, "e1") == 1.0f);
+    CHECK(at(PL_THEIR_DANGER, "a8") == 1.0f);
+    CHECK(at(PL_THEIR_DANGER, "h4") == 0.0f && at(PL_THEIR_DANGER, "d6") == 0.0f);
+    CHECK(at(PL_OUR_DANGER, "a8") == 0.0f);         // the danger planes hold only their own side
+    CHECK(at(PL_OUR_ATTACKS, "d5") == 0.25f);       // the e4 bishop
+    CHECK(at(PL_THEIR_ATTACKS, "e5") == 0.25f);     // the d6 pawn
+    CHECK(at(PL_THEIR_ATTACKS, "e4") == 0.25f);     // the h4 queen along the 4th rank
+    CHECK(at(PL_THEIR_ATTACKS, "e1") == 0.25f);     // ... and along the diagonal
+    // A rook attacked by a rook is safe while defended and in danger when not.
+    encodeBoard(fromFen("3rk3/8/8/8/8/8/8/3RK3 w - - 0 1"), h.data(), HEURISTIC_PLANES);
+    CHECK(at(PL_OUR_DANGER, "d1") == 0.0f && at(PL_THEIR_DANGER, "d8") == 0.0f);
+    CHECK(at(PL_OUR_ATTACKS, "d8") == 0.25f && at(PL_OUR_ATTACKS, "d2") == 0.5f);   // rook + king
+    encodeBoard(fromFen("3r3k/8/8/8/8/8/8/3R2K1 w - - 0 1"), h.data(), HEURISTIC_PLANES);
+    CHECK(at(PL_OUR_DANGER, "d1") == 1.0f && at(PL_THEIR_DANGER, "d8") == 1.0f);
+    // Black to move: "ours" is black, and the view is flipped.
+    std::vector<float> wv(HEURISTIC_FLOATS), bv(HEURISTIC_FLOATS);
+    encodeBoard(fromFen("r3k2r/8/8/8/4P3/8/8/R3K2R b Kq e3 7 30"), wv.data(), HEURISTIC_PLANES);
+    encodeBoard(fromFen("r3k2r/8/8/4p3/8/8/8/R3K2R w Qk e6 7 30"), bv.data(), HEURISTIC_PLANES);
+    CHECK(wv == bv);
 }
 
 static void testStatus() {

@@ -51,10 +51,13 @@ void parallelFor(int64_t n, int threads, Fn&& fn, int64_t minPerThread = 256) {
     for (auto& th : pool) th.join();
 }
 
-// out: n * ENCODED_FLOATS floats, (N, 19, 8, 8) row-major.
-inline void encode(const Board* boards, int64_t n, float* out, int threads = 0) {
+// out: n * planes * 64 floats, (N, planes, 8, 8) row-major; planes is
+// NUM_PLANES (19) or HEURISTIC_PLANES (23).
+inline void encode(const Board* boards, int64_t n, float* out, int threads = 0,
+                   int planes = NUM_PLANES) {
+    const int64_t stride = static_cast<int64_t>(planes) * PLANE_SIZE;
     parallelFor(n, threads, [&](int64_t b, int64_t e) {
-        for (int64_t i = b; i < e; ++i) encodeBoard(boards[i], out + i * ENCODED_FLOATS);
+        for (int64_t i = b; i < e; ++i) encodeBoard(boards[i], out + i * stride, planes);
     });
 }
 

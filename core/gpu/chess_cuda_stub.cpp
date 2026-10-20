@@ -17,7 +17,7 @@ bool available() { return false; }
 int  deviceCount() { return 0; }
 std::string deviceName(int) { unavailable(); }
 std::string buildInfo() { return "built without CUDA"; }
-void encode(const void*, int64_t, float*, int, uintptr_t) { unavailable(); }
+void encode(const void*, int64_t, float*, int, uintptr_t, int) { unavailable(); }
 void countLegal(const void*, int64_t, int32_t*, uint8_t*, int, uintptr_t) { unavailable(); }
 void expand(const void*, int64_t, const int64_t*, void*, void*, int64_t*, int, uintptr_t) {
     unavailable();

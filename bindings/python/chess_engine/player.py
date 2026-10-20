@@ -40,8 +40,15 @@ from . import _core
 from ._core import Game, Move, Status
 
 # (N, 19, 8, 8) float32 inputs -> (N, 3) probabilities [win, draw, loss] for
-# the side to move in each position.
+# the side to move in each position. An evaluator (or model) with an
+# `input_planes` attribute of 23 is given the heuristic encoding instead
+# (the Deep Q models; see core/encode.hpp).
 Evaluator = Callable[[np.ndarray], np.ndarray]
+
+
+def input_planes(model) -> int:
+    """How many input planes an evaluator or model expects: 19, or 23 for the heuristic encoding."""
+    return int(getattr(model, "input_planes", _core.NUM_PLANES))
 
 WIN, DRAW, LOSS = 0, 1, 2
 _TERMINAL_NAMES = {
@@ -84,7 +91,8 @@ def evaluate_boards(evaluate: Evaluator, boards: np.ndarray, chunk: int = EVAL_C
     keys = np.ascontiguousarray(boards).view(np.dtype((np.void, boards.shape[1]))).ravel()
     _, first, inverse = np.unique(keys, return_index=True, return_inverse=True)
     unique = boards[first]
-    out = [np.asarray(evaluate(_core.encode_boards(unique[i:i + chunk])), dtype=np.float64)
+    planes = input_planes(evaluate)
+    out = [np.asarray(evaluate(_core.encode_boards(unique[i:i + chunk], planes=planes)), dtype=np.float64)
            for i in range(0, len(unique), chunk)]
     return np.concatenate(out)[inverse.ravel()]
 
@@ -208,6 +216,7 @@ class TorchEvaluator:
             device = param.device if param is not None else "cpu"
         self.device = torch.device(device)
         self.batch_size = batch_size
+        self.input_planes = input_planes(model)
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
         torch = self.torch
@@ -227,6 +236,8 @@ class OnnxEvaluator:
 
         self.session = ort.InferenceSession(path, providers=list(providers or ort.get_available_providers()))
         self.input_name = self.session.get_inputs()[0].name
+        planes = self.session.get_inputs()[0].shape[1]
+        self.input_planes = planes if isinstance(planes, int) else _core.NUM_PLANES
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
         logits = self.session.run(None, {self.input_name: np.ascontiguousarray(x, dtype=np.float32)})[0]
@@ -252,9 +263,11 @@ def _network_probs(model, boards, eval_batch: int):
 
     probs = torch.empty((boards.shape[0], 3), dtype=torch.float32, device=boards.device)
     use_amp = boards.is_cuda                               # half precision: ~2x faster, same choices
+    planes = input_planes(model)
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.float16, enabled=use_amp):
         for i in range(0, boards.shape[0], eval_batch):
-            probs[i:i + eval_batch] = torch.softmax(model(gpu.encode(boards[i:i + eval_batch])).float(), dim=-1)
+            x = gpu.encode(boards[i:i + eval_batch], planes)
+            probs[i:i + eval_batch] = torch.softmax(model(x).float(), dim=-1)
     return probs
 
 

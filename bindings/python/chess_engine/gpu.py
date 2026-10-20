@@ -5,6 +5,7 @@ Every function takes boards as a uint8 tensor of shape (N, 72) (one
 returns tensors on that same device:
 
     encode(boards)       -> (N, 19, 8, 8) float32 network input
+    encode(boards, 23)   -> (N, 23, 8, 8) with the heuristic planes (Deep Q)
     count_legal(boards)  -> counts int32 (N,), status uint8 (N,)
     expand(boards)       -> children uint8 (M, 72), moves uint8 (M, 4),
                             parent int64 (M,), offsets int64 (N + 1,)
@@ -40,6 +41,7 @@ __all__ = [
 ]
 
 NUM_PLANES = _core.NUM_PLANES
+HEURISTIC_PLANES = _core.HEURISTIC_PLANES
 BOARD_BYTES = _core.BOARD_BYTES
 _warned = False
 
@@ -86,18 +88,25 @@ def _stream(device: torch.device) -> int:
     return torch.cuda.current_stream(device).cuda_stream
 
 
-def encode(boards: torch.Tensor) -> torch.Tensor:
-    """Network input for each board: (N, 19, 8, 8) float32, side-to-move view."""
+def encode(boards: torch.Tensor, planes: int = NUM_PLANES) -> torch.Tensor:
+    """Network input for each board: (N, planes, 8, 8) float32, side-to-move view.
+
+    planes is 19 (the standard encoding) or 23 (plus the heuristic planes:
+    attacks and pieces in danger, see core/encode.hpp).
+    """
+    if planes not in (NUM_PLANES, HEURISTIC_PLANES):
+        raise ValueError(f"planes must be {NUM_PLANES} or {HEURISTIC_PLANES}, got {planes}")
     b = _as_boards(boards)
     n = b.shape[0]
     if _on_gpu(b):
-        out = torch.empty((n, NUM_PLANES, 8, 8), dtype=torch.float32, device=b.device)
+        out = torch.empty((n, planes, 8, 8), dtype=torch.float32, device=b.device)
         if n:
-            _core.cuda_encode(b.data_ptr(), n, out.data_ptr(), b.device.index, _stream(b.device))
+            _core.cuda_encode(b.data_ptr(), n, out.data_ptr(), b.device.index, _stream(b.device), planes)
         return out
-    if b.is_cuda:
+    if b.is_cuda and planes == NUM_PLANES:
         return encode_torch(b)
-    return torch.from_numpy(_core.encode_boards(b.numpy()))
+    out = torch.from_numpy(_core.encode_boards(b.cpu().numpy(), planes=planes))
+    return out.to(b.device)
 
 
 def encode_torch(boards: torch.Tensor) -> torch.Tensor:
