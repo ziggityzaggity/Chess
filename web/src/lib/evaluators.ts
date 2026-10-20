@@ -54,20 +54,24 @@ export class OnnxEvaluator implements PositionEvaluator {
     private readonly engine: EngineModule,
     private readonly ort: Ort,
     private readonly session: import("onnxruntime-web/wasm").InferenceSession,
+    private readonly planes: number,
   ) {}
 
-  /** Load a value network from a URL (or the model file's bytes). */
+  /**
+   * Load a value network from a URL (or the model file's bytes). `planes` is
+   * its input encoding: 19 (Convolutional) or 23 (Deep Q, heuristic planes).
+   */
   static async load(
     engine: EngineModule,
     model: string | Uint8Array,
-    options: { wasmPaths?: string } = {},
+    options: { wasmPaths?: string; planes?: number } = {},
   ): Promise<OnnxEvaluator> {
     const ort = await loadOrt(options.wasmPaths ?? ORT_BASE);
     const session = // (two calls: create() is overloaded on the argument type)
       typeof model === "string"
         ? await ort.InferenceSession.create(model, { executionProviders: ["wasm"] })
         : await ort.InferenceSession.create(model, { executionProviders: ["wasm"] });
-    return new OnnxEvaluator(engine, ort, session);
+    return new OnnxEvaluator(engine, ort, session, options.planes ?? engine.NUM_PLANES);
   }
 
   async evaluate(boards: Uint8Array): Promise<Float32Array> {
@@ -78,8 +82,8 @@ export class OnnxEvaluator implements PositionEvaluator {
     const [output] = this.session.outputNames;
     for (let start = 0; start < n; start += CHUNK) {
       const count = Math.min(CHUNK, n - start);
-      const planes = this.engine.encodeBoards(boards.subarray(start * B, (start + count) * B));
-      const tensor = new this.ort.Tensor("float32", planes, [count, this.engine.NUM_PLANES, 8, 8]);
+      const planes = this.engine.encodeBoardsPlanes(boards.subarray(start * B, (start + count) * B), this.planes);
+      const tensor = new this.ort.Tensor("float32", planes, [count, this.planes, 8, 8]);
       const result = await this.session.run({ [input]: tensor });
       const logits = result[output].data as Float32Array;
       for (let i = 0; i < count; i++) {
@@ -99,10 +103,10 @@ export class OnnxEvaluator implements PositionEvaluator {
 const loaded = new Map<string, Promise<OnnxEvaluator>>();
 
 /** The evaluator for a model URL, loaded once per page. */
-export function onnxEvaluator(engine: EngineModule, url: string): Promise<OnnxEvaluator> {
+export function onnxEvaluator(engine: EngineModule, url: string, planes?: number): Promise<OnnxEvaluator> {
   let evaluator = loaded.get(url);
   if (!evaluator) {
-    evaluator = OnnxEvaluator.load(engine, url);
+    evaluator = OnnxEvaluator.load(engine, url, { planes });
     evaluator.catch(() => loaded.delete(url)); // allow a retry
     loaded.set(url, evaluator);
   }

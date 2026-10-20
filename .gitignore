@@ -35,6 +35,7 @@ supabase/.temp/
 # ML artefacts written by ai/chess_value_network.ipynb
 ai/models/
 ai/checkpoints/
+ai/runs/
 .ipynb_checkpoints/
 
 # Development virtual environment (scripts/setup-dev.*)

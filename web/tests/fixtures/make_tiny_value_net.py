@@ -50,3 +50,26 @@ flat = planes.reshape(len(FENS), -1)
     "planes_nonzero": [[[int(i), float(flat[k, i])] for i in np.flatnonzero(flat[k])] for k in range(len(FENS))],
 }))
 print(probs)
+
+# A tiny Deep Q network: the 23-plane heuristic encoding in, W/D/L logits out,
+# exported like the real ones (dqn_training.export_dqn).
+import dqn_training as dq  # noqa: E402
+
+torch.manual_seed(1)
+qcfg = dq.DQNConfig(size="small", head_channels=4, hidden=16)
+qnet = dq.AfterstateQNet(channels=8, blocks=1, head_channels=4, hidden=16).eval()
+for p in qnet.parameters():
+    p.data.mul_(1.6)
+qplanes = ce.encode_boards(boards, planes=ce.HEURISTIC_PLANES)
+with tempfile.TemporaryDirectory() as tmp:
+    dq.export_dqn(qnet, qcfg, tmp)
+    (OUT / "tiny_deep_q_net.onnx").write_bytes((Path(tmp) / "deep_q_small.onnx").read_bytes())
+with torch.no_grad():
+    qprobs = torch.softmax(qnet(torch.from_numpy(qplanes)), 1).numpy()
+qflat = qplanes.reshape(len(FENS), -1)
+(OUT / "tiny_deep_q_net.expected.json").write_text(json.dumps({
+    "fens": FENS,
+    "probs": qprobs.round(6).tolist(),
+    "planes_nonzero": [[[int(i), float(qflat[k, i])] for i in np.flatnonzero(qflat[k])] for k in range(len(FENS))],
+}))
+print(qprobs)

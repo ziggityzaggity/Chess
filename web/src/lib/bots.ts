@@ -30,14 +30,20 @@ export const BOT_FAMILIES = {
   dqn: {
     id: "dqn",
     name: "Deep Q",
-    architecture: "Self-play reinforcement learning",
+    architecture: "Reinforcement learning from its own games",
     description:
-      "Learns by playing against itself instead of studying master games.",
+      "Learns by playing games instead of studying master games. Choose its size and how far it looks ahead.",
     hasDepth: true,
   },
 } as const;
 
 export type BotFamily = keyof typeof BOT_FAMILIES;
+/** The families that play with a trained network, in sizes. */
+export type NetworkFamily = "cnn" | "dqn";
+
+export function isNetworkFamily(family: BotFamily): family is NetworkFamily {
+  return family === "cnn" || family === "dqn";
+}
 export type BotDepth = 1 | 2 | 3;
 export type ModelSize = "small" | "medium" | "large";
 
@@ -59,25 +65,26 @@ export type BotSpec =
       depth: BotDepth;
       /** Run on the move server (signed-in players, large model only) instead of in the browser. */
       server?: boolean;
-    };
+    }
+  | { family: "dqn"; size: ModelSize; depth: BotDepth };
 
 /** Model sizes the move server can run. */
 export const SERVER_SIZES: readonly ModelSize[] = ["large"];
 
-/** Families a game can be started against (Deep Q is announced, not playable). */
+/** Families a game can be started against (the network families once a model is deployed). */
 export function isPlayable(family: BotFamily): boolean {
-  return family !== "dqn";
+  return family in BOT_FAMILIES;
 }
 
 export const DEFAULT_BOT: BotSpec = { family: "greedy", depth: 1 };
 
 /**
- * The lookahead a bot starts with. Convolutional bots search two moves, except
- * the large one: each of its searches costs about 2.5 times as much, so it
- * starts at one. Greedy starts at one.
+ * The lookahead a bot starts with. Network bots (Convolutional, Deep Q) search
+ * two moves, except the large ones: each of their searches costs about 2.5
+ * times as much, so they start at one. Greedy starts at one.
  */
 export function defaultDepth(family: BotFamily, size?: ModelSize): BotDepth {
-  if (family !== "cnn") return 1;
+  if (!isNetworkFamily(family)) return 1;
   return size === "large" ? 1 : 2;
 }
 
@@ -110,6 +117,10 @@ export function parseBotSpec(params: { get(name: string): string | null }): BotS
       if (params.get("server") === "1" && SERVER_SIZES.includes(size)) spec.server = true;
       return spec;
     }
+    case "dqn": {
+      const size = parseSize(params.get("size"));
+      return { family: "dqn", size, depth: parseDepth(depth, defaultDepth("dqn", size)) };
+    }
     default:
       return { family: "greedy", depth: parseDepth(depth, 1) };
   }
@@ -124,13 +135,15 @@ export function botQuery(spec: BotSpec): string {
       return `bot=greedy&depth=${spec.depth}`;
     case "cnn":
       return `bot=cnn&size=${spec.size}&depth=${spec.depth}${spec.server ? "&server=1" : ""}`;
+    case "dqn":
+      return `bot=dqn&size=${spec.size}&depth=${spec.depth}`;
   }
 }
 
 /** Display name, e.g. "Convolutional (small)". */
 export function botName(spec: BotSpec): string {
   const name = BOT_FAMILIES[spec.family].name;
-  return spec.family === "cnn" ? `${name} (${spec.size})` : name;
+  return isNetworkFamily(spec.family) && "size" in spec ? `${name} (${spec.size})` : name;
 }
 
 /** Short description of how it plays, e.g. "Material search · depth 2". */

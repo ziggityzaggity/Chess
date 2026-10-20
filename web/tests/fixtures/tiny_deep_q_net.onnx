@@ -1,0 +1,1215 @@
+
+pytorch2.14.0+cu130:ÈÛ
+ó
+planes
+trunk.0.weightgetitemnode_Conv_188"Conv*
+group *
+pads@@@@ *
+auto_pad"NOTSET *
+strides@@ *
+	dilations@@ *
+kernel_shape@@ Jà
+	namespaceÒ: dqn_training.AfterstateQNet/trunk: torch.nn.modules.container.Sequential/trunk.1: torch.nn.modules.batchnorm.BatchNorm2d/_native_batch_norm_legit_no_training: aten._native_batch_norm_legit_no_training.defaultJr
+!pkg.onnxscript.rewriter.rule_nameMRemoveOptionalBiasFromConv, FuseBatchNormIntoConv, RemoveOptionalBiasFromConvJÊ
+pkg.torch.onnx.class_hierarchy§['dqn_training.AfterstateQNet', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.batchnorm.BatchNorm2d', 'aten._native_batch_norm_legit_no_training.default']J¤
+pkg.torch.onnx.fx_node‰%_native_batch_norm_legit_no_training : [num_users=1] = call_function[target=torch.ops.aten._native_batch_norm_legit_no_training.default](args = (%conv2d, %p_trunk_1_weight, %p_trunk_1_bias, %b_trunk_1_running_mean, %b_trunk_1_running_var, 0.1, 1e-05), kwargs = {})J^
+pkg.torch.onnx.name_scopes@['', 'trunk', 'trunk.1', '_native_batch_norm_legit_no_training']Jš
+pkg.torch.onnx.stack_traceûFile "/home/user/Chess/ai/dqn_training.py", line 197, in forward
+    logits = self.head(self.trunk(x))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 259, in forward
+    input = module(input)
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/batchnorm.py", line 210, in forward
+    return F.batch_norm(
+ß
+getitemrelu	node_relu"ReluJš
+	namespaceŒ: dqn_training.AfterstateQNet/trunk: torch.nn.modules.container.Sequential/trunk.2: torch.nn.modules.activation.ReLU/relu: aten.relu.defaultJ¤
+pkg.torch.onnx.class_hierarchy['dqn_training.AfterstateQNet', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.ReLU', 'aten.relu.default']J„
+pkg.torch.onnx.fx_nodej%relu : [num_users=2] = call_function[target=torch.ops.aten.relu.default](args = (%getitem,), kwargs = {})J>
+pkg.torch.onnx.name_scopes ['', 'trunk', 'trunk.2', 'relu']J±
+pkg.torch.onnx.stack_trace’File "/home/user/Chess/ai/dqn_training.py", line 197, in forward
+    logits = self.head(self.trunk(x))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 259, in forward
+    input = module(input)
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/activation.py", line 143, in forward
+    return F.relu(input, inplace=self.inplace)
+×
+relu
+trunk.3.conv1.weight	getitem_3node_Conv_191"Conv*
+group *
+pads@@@@ *
+auto_pad"NOTSET *
+strides@@ *
+	dilations@@ *
+kernel_shape@@ JŒ
+	namespaceş: dqn_training.AfterstateQNet/trunk: torch.nn.modules.container.Sequential/trunk.3: value_training.ResidualBlock/trunk.3.bn1: torch.nn.modules.batchnorm.BatchNorm2d/_native_batch_norm_legit_no_training_1: aten._native_batch_norm_legit_no_training.defaultJr
+!pkg.onnxscript.rewriter.rule_nameMRemoveOptionalBiasFromConv, FuseBatchNormIntoConv, RemoveOptionalBiasFromConvJê
+pkg.torch.onnx.class_hierarchyÇ['dqn_training.AfterstateQNet', 'torch.nn.modules.container.Sequential', 'value_training.ResidualBlock', 'torch.nn.modules.batchnorm.BatchNorm2d', 'aten._native_batch_norm_legit_no_training.default']J¸
+pkg.torch.onnx.fx_node%_native_batch_norm_legit_no_training_1 : [num_users=1] = call_function[target=torch.ops.aten._native_batch_norm_legit_no_training.default](args = (%conv2d_1, %p_trunk_3_bn1_weight, %p_trunk_3_bn1_bias, %b_trunk_3_bn1_running_mean, %b_trunk_3_bn1_running_var, 0.1, 1e-05), kwargs = {})Jo
+pkg.torch.onnx.name_scopesQ['', 'trunk', 'trunk.3', 'trunk.3.bn1', '_native_batch_norm_legit_no_training_1']J‡
+pkg.torch.onnx.stack_traceèFile "/home/user/Chess/ai/dqn_training.py", line 197, in forward
+    logits = self.head(self.trunk(x))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 259, in forward
+    input = module(input)
+  File "/home/user/Chess/ai/value_training.py", line 359, in forward
+    y = F.relu(self.bn1(self.conv1(x)))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/batchnorm.py", line 210, in forward
+    return F.batch_norm(
+°
+	getitem_3relu_1node_relu_1"ReluJ˜
+	namespaceŠ: dqn_training.AfterstateQNet/trunk: torch.nn.modules.container.Sequential/trunk.3: value_training.ResidualBlock/relu_1: aten.relu.defaultJŸ
+pkg.torch.onnx.class_hierarchy}['dqn_training.AfterstateQNet', 'torch.nn.modules.container.Sequential', 'value_training.ResidualBlock', 'aten.relu.default']Jˆ
+pkg.torch.onnx.fx_noden%relu_1 : [num_users=1] = call_function[target=torch.ops.aten.relu.default](args = (%getitem_3,), kwargs = {})J@
+pkg.torch.onnx.name_scopes"['', 'trunk', 'trunk.3', 'relu_1']Jı
+pkg.torch.onnx.stack_traceŞFile "/home/user/Chess/ai/dqn_training.py", line 197, in forward
+    logits = self.head(self.trunk(x))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 259, in forward
+    input = module(input)
+  File "/home/user/Chess/ai/value_training.py", line 359, in forward
+    y = F.relu(self.bn1(self.conv1(x)))
+à
+relu_1
+trunk.3.conv2.weight	getitem_6node_Conv_194"Conv*
+group *
+pads@@@@ *
+auto_pad"NOTSET *
+strides@@ *
+	dilations@@ *
+kernel_shape@@ JŒ
+	namespaceş: dqn_training.AfterstateQNet/trunk: torch.nn.modules.container.Sequential/trunk.3: value_training.ResidualBlock/trunk.3.bn2: torch.nn.modules.batchnorm.BatchNorm2d/_native_batch_norm_legit_no_training_2: aten._native_batch_norm_legit_no_training.defaultJr
+!pkg.onnxscript.rewriter.rule_nameMRemoveOptionalBiasFromConv, FuseBatchNormIntoConv, RemoveOptionalBiasFromConvJê
+pkg.torch.onnx.class_hierarchyÇ['dqn_training.AfterstateQNet', 'torch.nn.modules.container.Sequential', 'value_training.ResidualBlock', 'torch.nn.modules.batchnorm.BatchNorm2d', 'aten._native_batch_norm_legit_no_training.default']J¸
+pkg.torch.onnx.fx_node%_native_batch_norm_legit_no_training_2 : [num_users=1] = call_function[target=torch.ops.aten._native_batch_norm_legit_no_training.default](args = (%conv2d_2, %p_trunk_3_bn2_weight, %p_trunk_3_bn2_bias, %b_trunk_3_bn2_running_mean, %b_trunk_3_bn2_running_var, 0.1, 1e-05), kwargs = {})Jo
+pkg.torch.onnx.name_scopesQ['', 'trunk', 'trunk.3', 'trunk.3.bn2', '_native_batch_norm_legit_no_training_2']J
+pkg.torch.onnx.stack_traceïFile "/home/user/Chess/ai/dqn_training.py", line 197, in forward
+    logits = self.head(self.trunk(x))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 259, in forward
+    input = module(input)
+  File "/home/user/Chess/ai/value_training.py", line 360, in forward
+    return F.relu(x + self.bn2(self.conv2(y)))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/batchnorm.py", line 210, in forward
+    return F.batch_norm(
+¼
+relu
+	getitem_6add_45node_add_45"AddJ–
+	namespaceˆ: dqn_training.AfterstateQNet/trunk: torch.nn.modules.container.Sequential/trunk.3: value_training.ResidualBlock/add_45: aten.add.TensorJ
+pkg.torch.onnx.class_hierarchy{['dqn_training.AfterstateQNet', 'torch.nn.modules.container.Sequential', 'value_training.ResidualBlock', 'aten.add.Tensor']JŒ
+pkg.torch.onnx.fx_noder%add_45 : [num_users=1] = call_function[target=torch.ops.aten.add.Tensor](args = (%relu, %getitem_6), kwargs = {})J@
+pkg.torch.onnx.name_scopes"['', 'trunk', 'trunk.3', 'add_45']J„
+pkg.torch.onnx.stack_traceåFile "/home/user/Chess/ai/dqn_training.py", line 197, in forward
+    logits = self.head(self.trunk(x))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 259, in forward
+    input = module(input)
+  File "/home/user/Chess/ai/value_training.py", line 360, in forward
+    return F.relu(x + self.bn2(self.conv2(y)))
+±
+add_45relu_2node_relu_2"ReluJ˜
+	namespaceŠ: dqn_training.AfterstateQNet/trunk: torch.nn.modules.container.Sequential/trunk.3: value_training.ResidualBlock/relu_2: aten.relu.defaultJŸ
+pkg.torch.onnx.class_hierarchy}['dqn_training.AfterstateQNet', 'torch.nn.modules.container.Sequential', 'value_training.ResidualBlock', 'aten.relu.default']J…
+pkg.torch.onnx.fx_nodek%relu_2 : [num_users=1] = call_function[target=torch.ops.aten.relu.default](args = (%add_45,), kwargs = {})J@
+pkg.torch.onnx.name_scopes"['', 'trunk', 'trunk.3', 'relu_2']J„
+pkg.torch.onnx.stack_traceåFile "/home/user/Chess/ai/dqn_training.py", line 197, in forward
+    logits = self.head(self.trunk(x))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 259, in forward
+    input = module(input)
+  File "/home/user/Chess/ai/value_training.py", line 360, in forward
+    return F.relu(x + self.bn2(self.conv2(y)))
+ô
+relu_2
+head.0.weight	getitem_9node_Conv_197"Conv*
+group *
+pads@ @ @ @  *
+auto_pad"NOTSET *
+strides@@ *
+	dilations@@ *
+kernel_shape@@ Jà
+	namespaceÒ: dqn_training.AfterstateQNet/head: torch.nn.modules.container.Sequential/head.1: torch.nn.modules.batchnorm.BatchNorm2d/_native_batch_norm_legit_no_training_3: aten._native_batch_norm_legit_no_training.defaultJr
+!pkg.onnxscript.rewriter.rule_nameMRemoveOptionalBiasFromConv, FuseBatchNormIntoConv, RemoveOptionalBiasFromConvJÊ
+pkg.torch.onnx.class_hierarchy§['dqn_training.AfterstateQNet', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.batchnorm.BatchNorm2d', 'aten._native_batch_norm_legit_no_training.default']J¤
+pkg.torch.onnx.fx_node‰%_native_batch_norm_legit_no_training_3 : [num_users=1] = call_function[target=torch.ops.aten._native_batch_norm_legit_no_training.default](args = (%conv2d_3, %p_head_1_weight, %p_head_1_bias, %b_head_1_running_mean, %b_head_1_running_var, 0.1, 1e-05), kwargs = {})J^
+pkg.torch.onnx.name_scopes@['', 'head', 'head.1', '_native_batch_norm_legit_no_training_3']Jš
+pkg.torch.onnx.stack_traceûFile "/home/user/Chess/ai/dqn_training.py", line 197, in forward
+    logits = self.head(self.trunk(x))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 259, in forward
+    input = module(input)
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/batchnorm.py", line 210, in forward
+    return F.batch_norm(
+é
+	getitem_9relu_3node_relu_3"ReluJš
+	namespaceŒ: dqn_training.AfterstateQNet/head: torch.nn.modules.container.Sequential/head.2: torch.nn.modules.activation.ReLU/relu_3: aten.relu.defaultJ¤
+pkg.torch.onnx.class_hierarchy['dqn_training.AfterstateQNet', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.ReLU', 'aten.relu.default']Jˆ
+pkg.torch.onnx.fx_noden%relu_3 : [num_users=1] = call_function[target=torch.ops.aten.relu.default](args = (%getitem_9,), kwargs = {})J>
+pkg.torch.onnx.name_scopes ['', 'head', 'head.2', 'relu_3']J±
+pkg.torch.onnx.stack_trace’File "/home/user/Chess/ai/dqn_training.py", line 197, in forward
+    logits = self.head(self.trunk(x))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 259, in forward
+    input = module(input)
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/activation.py", line 143, in forward
+    return F.relu(input, inplace=self.inplace)
+Û
+relu_3
+val_153view_1node_Reshape_200"Reshape*
+	allowzero J˜
+	namespaceŠ: dqn_training.AfterstateQNet/head: torch.nn.modules.container.Sequential/head.4: torch.nn.modules.linear.Linear/view_1: aten.view.defaultJ<
+!pkg.onnxscript.rewriter.rule_nameMaterializeReshapeShapeJ¡
+pkg.torch.onnx.class_hierarchy['dqn_training.AfterstateQNet', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.linear.Linear', 'aten.view.default']J
+pkg.torch.onnx.fx_node‚%view_1 : [num_users=1] = call_function[target=torch.ops.aten.view.default](args = (%relu_3, [%sym_size_int_1, 256]), kwargs = {})J>
+pkg.torch.onnx.name_scopes ['', 'head', 'head.4', 'view_1']Jµ
+pkg.torch.onnx.stack_trace–File "/home/user/Chess/ai/dqn_training.py", line 197, in forward
+    logits = self.head(self.trunk(x))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 259, in forward
+    input = module(input)
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/flatten.py", line 55, in forward
+    return input.flatten(self.start_dim, self.end_dim)
+â
+view_1
+head.4.weight
+head.4.biaslinearnode_linear"Gemm*
+beta  €? *
+transB *
+alpha  €? *
+transA  Jš
+	namespaceŒ: dqn_training.AfterstateQNet/head: torch.nn.modules.container.Sequential/head.4: torch.nn.modules.linear.Linear/linear: aten.linear.defaultJ¤
+pkg.torch.onnx.class_hierarchy['dqn_training.AfterstateQNet', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.linear.Linear', 'aten.linear.default']J©
+pkg.torch.onnx.fx_node%linear : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%view_1, %p_head_4_weight, %p_head_4_bias), kwargs = {})J>
+pkg.torch.onnx.name_scopes ['', 'head', 'head.4', 'linear']J±
+pkg.torch.onnx.stack_trace’File "/home/user/Chess/ai/dqn_training.py", line 197, in forward
+    logits = self.head(self.trunk(x))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 259, in forward
+    input = module(input)
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/linear.py", line 134, in forward
+    return F.linear(input, self.weight, self.bias)
+ã
+linearrelu_4node_relu_4"ReluJš
+	namespaceŒ: dqn_training.AfterstateQNet/head: torch.nn.modules.container.Sequential/head.5: torch.nn.modules.activation.ReLU/relu_4: aten.relu.defaultJ¤
+pkg.torch.onnx.class_hierarchy['dqn_training.AfterstateQNet', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.ReLU', 'aten.relu.default']J…
+pkg.torch.onnx.fx_nodek%relu_4 : [num_users=1] = call_function[target=torch.ops.aten.relu.default](args = (%linear,), kwargs = {})J>
+pkg.torch.onnx.name_scopes ['', 'head', 'head.5', 'relu_4']J±
+pkg.torch.onnx.stack_trace’File "/home/user/Chess/ai/dqn_training.py", line 197, in forward
+    logits = self.head(self.trunk(x))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 259, in forward
+    input = module(input)
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/activation.py", line 143, in forward
+    return F.relu(input, inplace=self.inplace)
+ì
+relu_4
+head.6.weight
+head.6.biaslinear_1node_linear_1"Gemm*
+beta  €? *
+transB *
+alpha  €? *
+transA  Jœ
+	namespace: dqn_training.AfterstateQNet/head: torch.nn.modules.container.Sequential/head.6: torch.nn.modules.linear.Linear/linear_1: aten.linear.defaultJ¤
+pkg.torch.onnx.class_hierarchy['dqn_training.AfterstateQNet', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.linear.Linear', 'aten.linear.default']J«
+pkg.torch.onnx.fx_node%linear_1 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%relu_4, %p_head_6_weight, %p_head_6_bias), kwargs = {})J@
+pkg.torch.onnx.name_scopes"['', 'head', 'head.6', 'linear_1']J±
+pkg.torch.onnx.stack_trace’File "/home/user/Chess/ai/dqn_training.py", line 197, in forward
+    logits = self.head(self.trunk(x))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/container.py", line 259, in forward
+    input = module(input)
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/linear.py", line 134, in forward
+    return F.linear(input, self.weight, self.bias)
+¹
+planes
+val_61
+val_65
+val_69
+val_69slice_1node_slice_1"SliceJE
+	namespace8: dqn_training.AfterstateQNet/slice_1: aten.slice.TensorJV
+pkg.torch.onnx.class_hierarchy4['dqn_training.AfterstateQNet', 'aten.slice.Tensor']J‰
+pkg.torch.onnx.fx_nodeo%slice_1 : [num_users=1] = call_function[target=torch.ops.aten.slice.Tensor](args = (%x, 1, 0, 6), kwargs = {})J-
+pkg.torch.onnx.name_scopes['', 'slice_1']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+›
+slice_1
+view_2mul_59node_mul_59"MulJB
+	namespace5: dqn_training.AfterstateQNet/mul_59: aten.mul.TensorJT
+pkg.torch.onnx.class_hierarchy2['dqn_training.AfterstateQNet', 'aten.mul.Tensor']JŒ
+pkg.torch.onnx.fx_noder%mul_59 : [num_users=1] = call_function[target=torch.ops.aten.mul.Tensor](args = (%slice_1, %view_2), kwargs = {})J,
+pkg.torch.onnx.name_scopes['', 'mul_59']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Ó
+mul_59
+val_69sum_1
+node_sum_1"	ReduceSum*
+noop_with_empty_axes  *
+keepdims  JF
+	namespace9: dqn_training.AfterstateQNet/sum_1: aten.sum.dim_IntListJY
+pkg.torch.onnx.class_hierarchy7['dqn_training.AfterstateQNet', 'aten.sum.dim_IntList']J‹
+pkg.torch.onnx.fx_nodeq%sum_1 : [num_users=1] = call_function[target=torch.ops.aten.sum.dim_IntList](args = (%mul_59, [1]), kwargs = {})J+
+pkg.torch.onnx.name_scopes['', 'sum_1']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+º
+planes
+val_65
+val_78
+val_69
+val_69slice_2node_slice_2"SliceJE
+	namespace8: dqn_training.AfterstateQNet/slice_2: aten.slice.TensorJV
+pkg.torch.onnx.class_hierarchy4['dqn_training.AfterstateQNet', 'aten.slice.Tensor']JŠ
+pkg.torch.onnx.fx_nodep%slice_2 : [num_users=1] = call_function[target=torch.ops.aten.slice.Tensor](args = (%x, 1, 6, 12), kwargs = {})J-
+pkg.torch.onnx.name_scopes['', 'slice_2']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+›
+slice_2
+view_2mul_66node_mul_66"MulJB
+	namespace5: dqn_training.AfterstateQNet/mul_66: aten.mul.TensorJT
+pkg.torch.onnx.class_hierarchy2['dqn_training.AfterstateQNet', 'aten.mul.Tensor']JŒ
+pkg.torch.onnx.fx_noder%mul_66 : [num_users=1] = call_function[target=torch.ops.aten.mul.Tensor](args = (%slice_2, %view_2), kwargs = {})J,
+pkg.torch.onnx.name_scopes['', 'mul_66']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Ó
+mul_66
+val_69sum_2
+node_sum_2"	ReduceSum*
+noop_with_empty_axes  *
+keepdims  JF
+	namespace9: dqn_training.AfterstateQNet/sum_2: aten.sum.dim_IntListJY
+pkg.torch.onnx.class_hierarchy7['dqn_training.AfterstateQNet', 'aten.sum.dim_IntList']J‹
+pkg.torch.onnx.fx_nodeq%sum_2 : [num_users=1] = call_function[target=torch.ops.aten.sum.dim_IntList](args = (%mul_66, [1]), kwargs = {})J+
+pkg.torch.onnx.name_scopes['', 'sum_2']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+¹
+planes
+val_87
+val_91
+val_95
+val_69slice_3node_slice_3"SliceJE
+	namespace8: dqn_training.AfterstateQNet/slice_3: aten.slice.TensorJV
+pkg.torch.onnx.class_hierarchy4['dqn_training.AfterstateQNet', 'aten.slice.Tensor']J‰
+pkg.torch.onnx.fx_nodeo%slice_3 : [num_users=1] = call_function[target=torch.ops.aten.slice.Tensor](args = (%x, 2, 3, 5), kwargs = {})J-
+pkg.torch.onnx.name_scopes['', 'slice_3']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+À
+slice_3
+val_87
+val_91
+val_87
+val_69slice_4node_slice_4"SliceJE
+	namespace8: dqn_training.AfterstateQNet/slice_4: aten.slice.TensorJV
+pkg.torch.onnx.class_hierarchy4['dqn_training.AfterstateQNet', 'aten.slice.Tensor']J
+pkg.torch.onnx.fx_nodeu%slice_4 : [num_users=4] = call_function[target=torch.ops.aten.slice.Tensor](args = (%slice_3, 3, 3, 5), kwargs = {})J-
+pkg.torch.onnx.name_scopes['', 'slice_4']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+º
+planes
+val_61
+val_78
+val_69
+val_69slice_5node_slice_5"SliceJE
+	namespace8: dqn_training.AfterstateQNet/slice_5: aten.slice.TensorJV
+pkg.torch.onnx.class_hierarchy4['dqn_training.AfterstateQNet', 'aten.slice.Tensor']JŠ
+pkg.torch.onnx.fx_nodep%slice_5 : [num_users=1] = call_function[target=torch.ops.aten.slice.Tensor](args = (%x, 1, 0, 12), kwargs = {})J-
+pkg.torch.onnx.name_scopes['', 'slice_5']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Ù
+slice_5
+val_117sum_3
+node_sum_3"	ReduceSum*
+noop_with_empty_axes  *
+keepdims  JF
+	namespace9: dqn_training.AfterstateQNet/sum_3: aten.sum.dim_IntListJY
+pkg.torch.onnx.class_hierarchy7['dqn_training.AfterstateQNet', 'aten.sum.dim_IntList']J
+pkg.torch.onnx.fx_nodeu%sum_3 : [num_users=1] = call_function[target=torch.ops.aten.sum.dim_IntList](args = (%slice_5, [2, 3]), kwargs = {})J+
+pkg.torch.onnx.name_scopes['', 'sum_3']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+£
+planes
+val_118selectnode_select"Gather*
+axis JB
+	namespace5: dqn_training.AfterstateQNet/select: aten.select.intJT
+pkg.torch.onnx.class_hierarchy2['dqn_training.AfterstateQNet', 'aten.select.int']J„
+pkg.torch.onnx.fx_nodej%select : [num_users=1] = call_function[target=torch.ops.aten.select.int](args = (%x, 1, 21), kwargs = {})J,
+pkg.torch.onnx.name_scopes['', 'select']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+—
+select
+sum_1mul_81node_mul_81"MulJB
+	namespace5: dqn_training.AfterstateQNet/mul_81: aten.mul.TensorJT
+pkg.torch.onnx.class_hierarchy2['dqn_training.AfterstateQNet', 'aten.mul.Tensor']JŠ
+pkg.torch.onnx.fx_nodep%mul_81 : [num_users=1] = call_function[target=torch.ops.aten.mul.Tensor](args = (%select, %sum_1), kwargs = {})J,
+pkg.torch.onnx.name_scopes['', 'mul_81']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+×
+mul_81
+val_119sum_4
+node_sum_4"	ReduceSum*
+noop_with_empty_axes  *
+keepdims  JF
+	namespace9: dqn_training.AfterstateQNet/sum_4: aten.sum.dim_IntListJY
+pkg.torch.onnx.class_hierarchy7['dqn_training.AfterstateQNet', 'aten.sum.dim_IntList']J
+pkg.torch.onnx.fx_nodet%sum_4 : [num_users=1] = call_function[target=torch.ops.aten.sum.dim_IntList](args = (%mul_81, [1, 2]), kwargs = {})J+
+pkg.torch.onnx.name_scopes['', 'sum_4']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+»
+sum_4
+val_69	unsqueezenode_unsqueeze"	UnsqueezeJL
+	namespace?: dqn_training.AfterstateQNet/unsqueeze: aten.unsqueeze.defaultJ[
+pkg.torch.onnx.class_hierarchy9['dqn_training.AfterstateQNet', 'aten.unsqueeze.default']J
+pkg.torch.onnx.fx_nodet%unsqueeze : [num_users=1] = call_function[target=torch.ops.aten.unsqueeze.default](args = (%sum_4, 1), kwargs = {})J/
+pkg.torch.onnx.name_scopes['', 'unsqueeze']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+¯
+	unsqueeze
+scalar_tensor_defaultdivnode_div"DivJ?
+	namespace2: dqn_training.AfterstateQNet/div: aten.div.TensorJT
+pkg.torch.onnx.class_hierarchy2['dqn_training.AfterstateQNet', 'aten.div.Tensor']J›
+pkg.torch.onnx.fx_node€%div : [num_users=1] = call_function[target=torch.ops.aten.div.Tensor](args = (%unsqueeze, %scalar_tensor_default), kwargs = {})J)
+pkg.torch.onnx.name_scopes['', 'div']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+­
+planes
+val_122select_1node_select_1"Gather*
+axis JD
+	namespace7: dqn_training.AfterstateQNet/select_1: aten.select.intJT
+pkg.torch.onnx.class_hierarchy2['dqn_training.AfterstateQNet', 'aten.select.int']J†
+pkg.torch.onnx.fx_nodel%select_1 : [num_users=1] = call_function[target=torch.ops.aten.select.int](args = (%x, 1, 22), kwargs = {})J.
+pkg.torch.onnx.name_scopes['', 'select_1']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+›
+select_1
+sum_2mul_89node_mul_89"MulJB
+	namespace5: dqn_training.AfterstateQNet/mul_89: aten.mul.TensorJT
+pkg.torch.onnx.class_hierarchy2['dqn_training.AfterstateQNet', 'aten.mul.Tensor']JŒ
+pkg.torch.onnx.fx_noder%mul_89 : [num_users=1] = call_function[target=torch.ops.aten.mul.Tensor](args = (%select_1, %sum_2), kwargs = {})J,
+pkg.torch.onnx.name_scopes['', 'mul_89']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+×
+mul_89
+val_119sum_5
+node_sum_5"	ReduceSum*
+noop_with_empty_axes  *
+keepdims  JF
+	namespace9: dqn_training.AfterstateQNet/sum_5: aten.sum.dim_IntListJY
+pkg.torch.onnx.class_hierarchy7['dqn_training.AfterstateQNet', 'aten.sum.dim_IntList']J
+pkg.torch.onnx.fx_nodet%sum_5 : [num_users=1] = call_function[target=torch.ops.aten.sum.dim_IntList](args = (%mul_89, [1, 2]), kwargs = {})J+
+pkg.torch.onnx.name_scopes['', 'sum_5']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Å
+sum_5
+val_69unsqueeze_1node_unsqueeze_1"	UnsqueezeJN
+	namespaceA: dqn_training.AfterstateQNet/unsqueeze_1: aten.unsqueeze.defaultJ[
+pkg.torch.onnx.class_hierarchy9['dqn_training.AfterstateQNet', 'aten.unsqueeze.default']J
+pkg.torch.onnx.fx_nodev%unsqueeze_1 : [num_users=1] = call_function[target=torch.ops.aten.unsqueeze.default](args = (%sum_5, 1), kwargs = {})J1
+pkg.torch.onnx.name_scopes['', 'unsqueeze_1']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+¿
+unsqueeze_1
+scalar_tensor_defaultdiv_1
+node_div_1"DivJA
+	namespace4: dqn_training.AfterstateQNet/div_1: aten.div.TensorJT
+pkg.torch.onnx.class_hierarchy2['dqn_training.AfterstateQNet', 'aten.div.Tensor']J¡
+pkg.torch.onnx.fx_node†%div_1 : [num_users=1] = call_function[target=torch.ops.aten.div.Tensor](args = (%unsqueeze_1, %scalar_tensor_default_1), kwargs = {})J+
+pkg.torch.onnx.name_scopes['', 'div_1']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Ù
+select
+val_119sum_6
+node_sum_6"	ReduceSum*
+noop_with_empty_axes  *
+keepdims  JF
+	namespace9: dqn_training.AfterstateQNet/sum_6: aten.sum.dim_IntListJY
+pkg.torch.onnx.class_hierarchy7['dqn_training.AfterstateQNet', 'aten.sum.dim_IntList']J
+pkg.torch.onnx.fx_nodev%sum_6 : [num_users=1] = call_function[target=torch.ops.aten.sum.dim_IntList](args = (%select_2, [1, 2]), kwargs = {})J+
+pkg.torch.onnx.name_scopes['', 'sum_6']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Å
+sum_6
+val_69unsqueeze_2node_unsqueeze_2"	UnsqueezeJN
+	namespaceA: dqn_training.AfterstateQNet/unsqueeze_2: aten.unsqueeze.defaultJ[
+pkg.torch.onnx.class_hierarchy9['dqn_training.AfterstateQNet', 'aten.unsqueeze.default']J
+pkg.torch.onnx.fx_nodev%unsqueeze_2 : [num_users=1] = call_function[target=torch.ops.aten.unsqueeze.default](args = (%sum_6, 1), kwargs = {})J1
+pkg.torch.onnx.name_scopes['', 'unsqueeze_2']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Û
+select_1
+val_119sum_7
+node_sum_7"	ReduceSum*
+noop_with_empty_axes  *
+keepdims  JF
+	namespace9: dqn_training.AfterstateQNet/sum_7: aten.sum.dim_IntListJY
+pkg.torch.onnx.class_hierarchy7['dqn_training.AfterstateQNet', 'aten.sum.dim_IntList']J
+pkg.torch.onnx.fx_nodev%sum_7 : [num_users=1] = call_function[target=torch.ops.aten.sum.dim_IntList](args = (%select_3, [1, 2]), kwargs = {})J+
+pkg.torch.onnx.name_scopes['', 'sum_7']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Å
+sum_7
+val_69unsqueeze_3node_unsqueeze_3"	UnsqueezeJN
+	namespaceA: dqn_training.AfterstateQNet/unsqueeze_3: aten.unsqueeze.defaultJ[
+pkg.torch.onnx.class_hierarchy9['dqn_training.AfterstateQNet', 'aten.unsqueeze.default']J
+pkg.torch.onnx.fx_nodev%unsqueeze_3 : [num_users=1] = call_function[target=torch.ops.aten.unsqueeze.default](args = (%sum_7, 1), kwargs = {})J1
+pkg.torch.onnx.name_scopes['', 'unsqueeze_3']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+«
+planes
+val_88select_5node_select_5"Gather*
+axis JD
+	namespace7: dqn_training.AfterstateQNet/select_5: aten.select.intJT
+pkg.torch.onnx.class_hierarchy2['dqn_training.AfterstateQNet', 'aten.select.int']J…
+pkg.torch.onnx.fx_nodek%select_5 : [num_users=1] = call_function[target=torch.ops.aten.select.int](args = (%x, 1, 5), kwargs = {})J.
+pkg.torch.onnx.name_scopes['', 'select_5']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+¤
+select
+select_5mul_107node_mul_107"MulJC
+	namespace6: dqn_training.AfterstateQNet/mul_107: aten.mul.TensorJT
+pkg.torch.onnx.class_hierarchy2['dqn_training.AfterstateQNet', 'aten.mul.Tensor']J
+pkg.torch.onnx.fx_nodev%mul_107 : [num_users=1] = call_function[target=torch.ops.aten.mul.Tensor](args = (%select_4, %select_5), kwargs = {})J-
+pkg.torch.onnx.name_scopes['', 'mul_107']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Ù
+mul_107
+val_119sum_8
+node_sum_8"	ReduceSum*
+noop_with_empty_axes  *
+keepdims  JF
+	namespace9: dqn_training.AfterstateQNet/sum_8: aten.sum.dim_IntListJY
+pkg.torch.onnx.class_hierarchy7['dqn_training.AfterstateQNet', 'aten.sum.dim_IntList']J
+pkg.torch.onnx.fx_nodeu%sum_8 : [num_users=1] = call_function[target=torch.ops.aten.sum.dim_IntList](args = (%mul_107, [1, 2]), kwargs = {})J+
+pkg.torch.onnx.name_scopes['', 'sum_8']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Å
+sum_8
+val_69unsqueeze_4node_unsqueeze_4"	UnsqueezeJN
+	namespaceA: dqn_training.AfterstateQNet/unsqueeze_4: aten.unsqueeze.defaultJ[
+pkg.torch.onnx.class_hierarchy9['dqn_training.AfterstateQNet', 'aten.unsqueeze.default']J
+pkg.torch.onnx.fx_nodev%unsqueeze_4 : [num_users=1] = call_function[target=torch.ops.aten.unsqueeze.default](args = (%sum_8, 1), kwargs = {})J1
+pkg.torch.onnx.name_scopes['', 'unsqueeze_4']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+À
+slice_4
+val_61
+val_65
+val_69
+val_69slice_6node_slice_6"SliceJE
+	namespace8: dqn_training.AfterstateQNet/slice_6: aten.slice.TensorJV
+pkg.torch.onnx.class_hierarchy4['dqn_training.AfterstateQNet', 'aten.slice.Tensor']J
+pkg.torch.onnx.fx_nodeu%slice_6 : [num_users=1] = call_function[target=torch.ops.aten.slice.Tensor](args = (%slice_4, 1, 0, 6), kwargs = {})J-
+pkg.torch.onnx.name_scopes['', 'slice_6']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Ü
+slice_6
+val_137sum_9
+node_sum_9"	ReduceSum*
+noop_with_empty_axes  *
+keepdims  JF
+	namespace9: dqn_training.AfterstateQNet/sum_9: aten.sum.dim_IntListJY
+pkg.torch.onnx.class_hierarchy7['dqn_training.AfterstateQNet', 'aten.sum.dim_IntList']J’
+pkg.torch.onnx.fx_nodex%sum_9 : [num_users=1] = call_function[target=torch.ops.aten.sum.dim_IntList](args = (%slice_6, [1, 2, 3]), kwargs = {})J+
+pkg.torch.onnx.name_scopes['', 'sum_9']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Å
+sum_9
+val_69unsqueeze_5node_unsqueeze_5"	UnsqueezeJN
+	namespaceA: dqn_training.AfterstateQNet/unsqueeze_5: aten.unsqueeze.defaultJ[
+pkg.torch.onnx.class_hierarchy9['dqn_training.AfterstateQNet', 'aten.unsqueeze.default']J
+pkg.torch.onnx.fx_nodev%unsqueeze_5 : [num_users=1] = call_function[target=torch.ops.aten.unsqueeze.default](args = (%sum_9, 1), kwargs = {})J1
+pkg.torch.onnx.name_scopes['', 'unsqueeze_5']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Á
+slice_4
+val_65
+val_78
+val_69
+val_69slice_7node_slice_7"SliceJE
+	namespace8: dqn_training.AfterstateQNet/slice_7: aten.slice.TensorJV
+pkg.torch.onnx.class_hierarchy4['dqn_training.AfterstateQNet', 'aten.slice.Tensor']J
+pkg.torch.onnx.fx_nodev%slice_7 : [num_users=1] = call_function[target=torch.ops.aten.slice.Tensor](args = (%slice_4, 1, 6, 12), kwargs = {})J-
+pkg.torch.onnx.name_scopes['', 'slice_7']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+á
+slice_7
+val_137sum_10node_sum_10"	ReduceSum*
+noop_with_empty_axes  *
+keepdims  JG
+	namespace:: dqn_training.AfterstateQNet/sum_10: aten.sum.dim_IntListJY
+pkg.torch.onnx.class_hierarchy7['dqn_training.AfterstateQNet', 'aten.sum.dim_IntList']J“
+pkg.torch.onnx.fx_nodey%sum_10 : [num_users=1] = call_function[target=torch.ops.aten.sum.dim_IntList](args = (%slice_7, [1, 2, 3]), kwargs = {})J,
+pkg.torch.onnx.name_scopes['', 'sum_10']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Ç
+sum_10
+val_69unsqueeze_6node_unsqueeze_6"	UnsqueezeJN
+	namespaceA: dqn_training.AfterstateQNet/unsqueeze_6: aten.unsqueeze.defaultJ[
+pkg.torch.onnx.class_hierarchy9['dqn_training.AfterstateQNet', 'aten.unsqueeze.default']J‘
+pkg.torch.onnx.fx_nodew%unsqueeze_6 : [num_users=1] = call_function[target=torch.ops.aten.unsqueeze.default](args = (%sum_10, 1), kwargs = {})J1
+pkg.torch.onnx.name_scopes['', 'unsqueeze_6']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+´
+slice_4
+val_149select_6node_select_6"Gather*
+axis JD
+	namespace7: dqn_training.AfterstateQNet/select_6: aten.select.intJT
+pkg.torch.onnx.class_hierarchy2['dqn_training.AfterstateQNet', 'aten.select.int']JŒ
+pkg.torch.onnx.fx_noder%select_6 : [num_users=1] = call_function[target=torch.ops.aten.select.int](args = (%slice_4, 1, 19), kwargs = {})J.
+pkg.torch.onnx.name_scopes['', 'select_6']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+à
+select_6
+val_119sum_11node_sum_11"	ReduceSum*
+noop_with_empty_axes  *
+keepdims  JG
+	namespace:: dqn_training.AfterstateQNet/sum_11: aten.sum.dim_IntListJY
+pkg.torch.onnx.class_hierarchy7['dqn_training.AfterstateQNet', 'aten.sum.dim_IntList']J‘
+pkg.torch.onnx.fx_nodew%sum_11 : [num_users=1] = call_function[target=torch.ops.aten.sum.dim_IntList](args = (%select_6, [1, 2]), kwargs = {})J,
+pkg.torch.onnx.name_scopes['', 'sum_11']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Ç
+sum_11
+val_69unsqueeze_7node_unsqueeze_7"	UnsqueezeJN
+	namespaceA: dqn_training.AfterstateQNet/unsqueeze_7: aten.unsqueeze.defaultJ[
+pkg.torch.onnx.class_hierarchy9['dqn_training.AfterstateQNet', 'aten.unsqueeze.default']J‘
+pkg.torch.onnx.fx_nodew%unsqueeze_7 : [num_users=1] = call_function[target=torch.ops.aten.unsqueeze.default](args = (%sum_11, 1), kwargs = {})J1
+pkg.torch.onnx.name_scopes['', 'unsqueeze_7']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+´
+slice_4
+val_151select_7node_select_7"Gather*
+axis JD
+	namespace7: dqn_training.AfterstateQNet/select_7: aten.select.intJT
+pkg.torch.onnx.class_hierarchy2['dqn_training.AfterstateQNet', 'aten.select.int']JŒ
+pkg.torch.onnx.fx_noder%select_7 : [num_users=1] = call_function[target=torch.ops.aten.select.int](args = (%slice_4, 1, 20), kwargs = {})J.
+pkg.torch.onnx.name_scopes['', 'select_7']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+à
+select_7
+val_119sum_12node_sum_12"	ReduceSum*
+noop_with_empty_axes  *
+keepdims  JG
+	namespace:: dqn_training.AfterstateQNet/sum_12: aten.sum.dim_IntListJY
+pkg.torch.onnx.class_hierarchy7['dqn_training.AfterstateQNet', 'aten.sum.dim_IntList']J‘
+pkg.torch.onnx.fx_nodew%sum_12 : [num_users=1] = call_function[target=torch.ops.aten.sum.dim_IntList](args = (%select_7, [1, 2]), kwargs = {})J,
+pkg.torch.onnx.name_scopes['', 'sum_12']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+Ç
+sum_12
+val_69unsqueeze_8node_unsqueeze_8"	UnsqueezeJN
+	namespaceA: dqn_training.AfterstateQNet/unsqueeze_8: aten.unsqueeze.defaultJ[
+pkg.torch.onnx.class_hierarchy9['dqn_training.AfterstateQNet', 'aten.unsqueeze.default']J‘
+pkg.torch.onnx.fx_nodew%unsqueeze_8 : [num_users=1] = call_function[target=torch.ops.aten.unsqueeze.default](args = (%sum_12, 1), kwargs = {})J1
+pkg.torch.onnx.name_scopes['', 'unsqueeze_8']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+ç
+sum_3
+div
+div_1
+unsqueeze_2
+unsqueeze_3
+unsqueeze_4
+unsqueeze_5
+unsqueeze_6
+unsqueeze_7
+unsqueeze_8catnode_cat"Concat*
+axis J@
+	namespace3: dqn_training.AfterstateQNet/cat: aten.cat.defaultJU
+pkg.torch.onnx.class_hierarchy3['dqn_training.AfterstateQNet', 'aten.cat.default']Jõ
+pkg.torch.onnx.fx_nodeÚ%cat : [num_users=1] = call_function[target=torch.ops.aten.cat.default](args = ([%sum_3, %div, %div_1, %unsqueeze_2, %unsqueeze_3, %unsqueeze_4, %unsqueeze_5, %unsqueeze_6, %unsqueeze_7, %unsqueeze_8], 1), kwargs = {})J)
+pkg.torch.onnx.name_scopes['', 'cat']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+†
+cat
+prior.weight
+
+prior.biaslinear_2node_linear_2"Gemm*
+beta  €? *
+transB *
+alpha  €? *
+transA  Jn
+	namespacea: dqn_training.AfterstateQNet/prior: torch.nn.modules.linear.Linear/linear_2: aten.linear.defaultJz
+pkg.torch.onnx.class_hierarchyX['dqn_training.AfterstateQNet', 'torch.nn.modules.linear.Linear', 'aten.linear.default']J¦
+pkg.torch.onnx.fx_node‹%linear_2 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%cat, %p_prior_weight, %p_prior_bias), kwargs = {})J7
+pkg.torch.onnx.name_scopes['', 'prior', 'linear_2']J¸
+pkg.torch.onnx.stack_trace™File "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+  File "/home/user/Chess/.venv/lib/python3.12/site-packages/torch/nn/modules/linear.py", line 134, in forward
+    return F.linear(input, self.weight, self.bias)
+©
+linear_1
+linear_2
+wdl_logitsnode_add_248"AddJC
+	namespace6: dqn_training.AfterstateQNet/add_248: aten.add.TensorJT
+pkg.torch.onnx.class_hierarchy2['dqn_training.AfterstateQNet', 'aten.add.Tensor']J
+pkg.torch.onnx.fx_nodev%add_248 : [num_users=1] = call_function[target=torch.ops.aten.add.Tensor](args = (%linear_1, %linear_2), kwargs = {})J-
+pkg.torch.onnx.name_scopes['', 'add_248']J–
+pkg.torch.onnx.stack_tracexFile "/home/user/Chess/ai/dqn_training.py", line 199, in forward
+    logits = logits + self.prior(heuristic_features(x))
+main_graph*ı3Btrunk.0.weightJà3„Ã»=ıÖ ½¡I½*
+«=ˆ+¾ŠÚ=ï½Xc¹=¢Ê<òy²¼‚$J=<Ğ<'…=(½³‹T¼¡9ƒ¼¹EÓ<GU:ºUF>.Ìb=Æ´‡½íÜ½§Qô¼.½‹i½ø•<(;Ù=Æ=Œ2¾¶æá=5šK=Ô,>5‡ğ=Ê&¾.=-¾vÃ¯½Wş>Ëò¼0ó›=®W©½˜Ç2>·-š½;£>¢
+;aù¿½O»=ÇnÁ½xXV=ÃrR½şÍŸ¼§*/¾¯½­½İ¼Å=(1½d{5>>f€¼´;ó½qèİ=Á0b=Ãë½D²ì=å:İ=˜!>EÌ½—îï¼Èäa»>åÔ<¸F
+¾bK¾¸<Æ=>æ*½_ ²=n2&<ÏLo=¥A =6„=…£´=@½(¾Ml·=< ¾y	¾®I1<Mcø¼áÖ=
+Ó½^ù!¾Ë™>>#Ø¼öÌ=ÜLj=ì ¾†j=–/=Tıó½=æ¬½gx=¹‹=İ›½Ÿ\½à&>FØ½›rÍ=´É=•ë½$ó¾¸ä.>K9<ŠÈù==¤fj=á>2Ä,>°Ïñ½w>¶<+ø>Mş>©aâ=äÜ¾K4¾ƒaÜ½·<˜5>R/æ½/Â=k±É½O+¾‚æ½oõÑ=Ë&)>	Oâ½È(=ô6>+yñ=Îã=z>À}æ=‹?<=½/ù½h¾+ú¦½³»©¼©\ß½Q…=’a=%½Œ=Šk=‰{Ş=Àgõ=Ğv½2>ï‚¨¼§OÈ»ú+¾8‰ê½ÆâÔ½İ›½8Š>)n½ì'¾H4Œ=„Wi=Qì=–‘¼½,=N©„½™¾#½03¾·¦½ê3_½óÔ›=5%=ÿ4=FÛ5>0”1>WŠø=“©¹;\ü½wd>|?6½Å®k¼v÷¾Óõ½-	ë½"m'>l„¾ì¾ûÅ»ä	Å½Jc‚=¬DŒ½ã'«½–%<?å>A* ¾O «= ê=²:2>«ÿ½|‚0=’¹¾>¼Z½İÛ=Å”­;´c¼{	º»NÉ÷<FÇ«=¢Åé<S^=å#¾¦½>ëÚ>ê›>°>‡{¾›‡½ä¦ >ŠÆ
+¾L%>M¾0X ¾&²=õè¾aø&½áŒ>ëQ>Q,>?ã½H¾Úe3>FA½­í•½ª1=Öş½çƒï=4bä=İ’¾Ï§¾]¼™=ËÜ¨»æÇ¸½fL…;ßA+¾ëÅ ¾^”ò½v>¨œ >/w½¿¿<„¢=Ã¥®<Üy¶½_*Ò=åà=ô(¼Ÿo³¼2“%>D>à›Î½“C2>\4=ò½¥zÇ=ö¾hW(>wDê½… N=ì]=AZ-=H>ÖZ—½!×™½ä¾½Gï» ¬½2Ÿé;„g½FĞq=R>W=0Çj½ºÏ²½hè¾(P>¹
+½=Õ¬×;ï8è½­9Í=õ7Ì=Ï<$Ï½eÖš½F• ;‚2Ğ½lRË½“mÙ¼<ÜQ½{è2=N?½Ó9Á¼‹½Ë&¾/ç>#=æí"> éê¼™(7½ıI+¾ÜTŠ½4÷î=ët2¾Xé~½(Ş=³Ò=ç†=‰C½{º\¼Ìg
+½yU†½˜=Ú;x½ÿ¶Ì½dV%=P²¾È‰½7º=70ˆ=…>TŠø½·ÅÊ:ÿ7W½(ÑË½ÿÌ½àœ7=™€˜<]º½9m ¾”õ¾Ë‘2>•qø¼¢†(½kÿ…½ C¶½0 &¾'íÕ½Ü»Ş=¥¼=è‹€½n¶‰½9Éè=ÔV>Š/>Ü˜T=#°=Ç;j¼Õ½ï2¾Ãôİ=ÜÓ¼µ¶•=~<€*¾FÆ²½u	M=É‚½ò/¾)=½›ß;w9j½i5“=‹İ=¤d†½>®#>UĞ¶=·<ë÷½U¾„¬>À<½¥|ë½U£é=k=a[4=‚½cpc½ÛZ÷<%ÿ>¼Ğ<¶N¬½Aÿ4>£dy; >îŸ1=WQ#>U@Ò=fÈ¹½)úÿ=G–:«A¾õ·½ u$¾[Ì¼½
+¾ <ù=½”×û¼¶ ®=2M”=¢~ğ½œK†=Îš=ÎŞ¾¸i>Œ»İ½€½µ¾F‡&>Ç
+=”k>è]><»Æ=“²h½,[¾¿üé<êü¼‰,“¼Èö²½Éfq;4MQ=4uƒ=vÆ¾û°=ä•<æUû=¸Ã >|¾Öø.>½/3¾¯{Ñ=•/M<_p¬=¤Å½ıÛ=Q´½#!¾¯,t=±uÇ=û›4>ÔV˜¼4F/>Lê='»´½RŠ¾waÌ=Ş¥Ç½g&§=Y¾Îí>ºoZ=I’§¼- §=Ê·¾‚R½/¢ä:çÒ½ò9:½›&½¥->sÉ>=%>ë>ó~.¾¥És=¦P†= ¤¾&µ“=A»Å½ùÈç<üfq=“8>ä+¿½Z¾m•(>÷˜=
+±=!,ƒ=ü€½Ù4Û=ƒ¾ÙÊ<‘¹¤=úø=õøµ½ìKö½Ö–ˆ=¸²¾Ók¾~Û#¾@¶°½ó½ Ì×½Pš½YV!¾rúß=Ø&½3ëå½¢¿==Õ;¾5ÿ=§‰Ñ=B3¾Á¾vGğ½TCÅ½ ¶<å+4¾¾ëj¦=„±n½‘½k»¾j²“=µÜM<\ÚŒ½¤'ß½Cÿ=jMF=™¾¡=A–X=,ZŞ¼A¾{ûç=ÅêÇº-ò½!>",Ë=Ÿ2¾Fıµ½'x½3]Ò½ó+ª=Qû¾*U)>Ú–½3×=4Æ;íB ½©Wó=­¾¡ÌÀ½Ñµ®<:‰>s!œ½„åİ½¤è½<¨ ½\Á{½1Á)½ÖMÏ½ÿÈc=qh½:÷î½Ğ½S=x”&»ğó >õ÷Ü¼š¾:Â¾OìU½şi!½ÅX¦<-s#½Êt†=±cr½Lº>Ùe'=µ`½İ`">_:=¥÷½sÎÊ½Š|ä=En¦=C>uï_¼ßş=q,µ=ˆca=ï­(½ó£/>ï{=Ï
+<½WÊ%»ù3>‚Àô=[	X¼ÔŸ2>Ã =ÁÂ½òĞ%¾ÛÄÓ=ñß*>ƒOÔ½;«•=Í5ø;êÔ½•+F½ZÁJ=Š« =ö=f…=Ó¥=» >–ğb=5_Ø<—ª„½öŸ>/C×<âê=Hñ/>÷ÿ"½ÖI >¬½l$> i>~‚½OÑ;M#Ÿ½Êa“½I½N Ÿº ~½ˆÿ+¾¸fÜ½-y¼F¨h½ÒT>>Ù%è=>G¡=bq¾E#,>Ü ¾­™o½†< ¾
+ƒ=èœ¾¦³½+yç½bşß½@ª½’3>Gn¼>)^=iŞ4¾’ÿ!>Ë³½ì6'¾Ó!û=¡E½˜v%>¼ƒ÷½~))¾8á¾	Ú=ƒw£¼•Ë(¾"=iÒ9¼Ş¥ƒ=c]¹½^¾_ø=ëY¯½Å* >òº>àÖş½5¨½ñw¯<·Ê+¾Ò_=FÕ—½„‘¡½¨Ú¾ˆyª=7è½\¢¾‘¨?½9İÊ½Ü"1¾"Ü’= ¤Š½‹@ÿ=EA >çgè½ğoÔ½ûX½sÕ=§³È»f.‚½°½á=VÊ,>Š³>©T¾p_½HË½Ó}>øx¼½ÇÙĞ½“q6;M)½áî‰=ü,±<|‘Ù½à|>[Õâ=N™=Nê$¾=«=ì!ò=æJ=”ÛŒ½×ƒC<3ı‹½İˆ+>Ûï/>µÜ©¼v+õ½\Ö=.ü¹=c)Á=&	¾æ w=c‚›½% ¾_tş½yš=Èlˆ=–é¾¥Î=;œ>‚P
+>şÁÍ=”Ğä¼¢,ô=^¤>ñô½=w¾ß[~½÷W>è
+>§„è=dN˜½ÆV½ø½¾‡¬Ï½>İ> Œ¾M4½ú³=‰¥Ú½ªâ)=eQê¼Í»‘=’Ñ¾(É<3&¾½â=@ü0>R‚½¥‰×<˜¾»½é½è¸½É™­½õW
+=§¼¬gL<{ ¾İğä½^¼¾Öô¾/”>‰b‡=Ä-¾-Hó¼Ôöi<a¬Â=êû(><ı/=iY >¿«½9¾»júÛ½Då'=°.(>tÖä=:N5>72¤½Wa¶¼cU=8|>Ã|'¾nö²½9qÓ<f Ò½x ˆ=Ş¾F¼³Ú<½ÄnÃ=æ6>À91>U¥=‰rŸ»*ø>>g¡¶½%ü¥=™Ìª<+|½	-½a,½şÿş½Qf^½º?u=ìÁ>	q]<Éq0¾!şÀ=ª†\½+·">Ó0¾@„*½4M>,¤=ÍÍµ½Å¾}úºëÅŒ=mC¾‘w¾ÃÊ»&x½˜7ê=¤Š0¾@×ç¼ƒ1¾ãLÔ¼.º½à^e=ık¾ÀT¾±ËÎ½>”¾C	æ=¶™Ğ¼*uÊ½Yÿ=pY%½Ow¼=*ìa½ap¾å =1éâ=§1¾t»—<fB=\L§<ŠG»Ğ‹b½$s¾™¾í<*½ô½4‹¾Rüi½htù½.a_=XÈ>	š>…İá½å«Æ=™y>Ï;Ú¼™=Ğ1Î=Hi>ˆûÂ=:‹›=OŠ½7+Ë½nË¬½Ÿé>“…0½L‰Ğ;.ë)¾g~¼²˜M½‹ ë½É>=ƒ¾‡]Ğ¼K³N¼®ò$¾ĞRÜ=Æåg½"µ£=jaË=Ö© >#E4=É>œE(>r=V½!ŒG½f%ì<i#ƒ=Çâ+¾„>Ûå<÷¹)¾qi=fAç=z)ˆ=ø¹>qq; (¾¶Ó¹ñn>ÄE¯½ém›= (=¨ì¼=¾¥: 	›=@]ù½Íæ=œ³ö=¹{Ì=À6>u˜ş»å¨ ¾È< qS½„£€=g>GsÇ½7'ô;N71>s¾Ó‡û¼¿í0>RŸş=~‡S=ì*½†à‡¼ƒb#¾‡‰+¾¶*¾ïÿ.>ß>cŒ=µ7½Îß>r‚@½Áúü=Ã½»Fk«½]hK½é½¢Æ&¾9ñY=™^½k§=Vè=à¾ç¼wº°=Ğœ=à¸ô=Ëë½¥ñ¼>Ür½«¦>ıŠ#¾MÒÌ½ÑŒ¤<=¿!>#ö=.*¾… ¾ª0>.mÔ<™¾gœe½ÜOŸ=!f½Sô¾ıà½Æ¼½´`ä»Î=æõ®=/±½O‘ô¼è¬¾ôÉ	>:Ô5>e1>3ì”=Ÿh½!X‘»xƒ=$ï¾¼÷4<…¾™+6¾àßÂ»@h½ÍÕæ½†¢ñ<^‚í;ÄnŞ<ÃóË½ìv2¾€4;ù¨”½µu½g">
+î<¹m¦=f®K½“¾YR=6Sñ½iš´<Á1¾?\	>š<ø½.>;µ >î»	>d¨Ú=ƒ°(=t¼c":»_î½¯z'¾&>†<Îb«=™şÕ;RpQ=-…à½-£¾mô
+>0Š=Ñí³=mØ4¾¿E<
+ó)¾Î¦¼¼¿. ¾¸k4¾™:šÚ#>j4$>PÛİ½_w½r]¾ŠJ¾8ÔG½fä0>„">½k«(<´h+>õà=Zû>—$ò=CÚ*>c÷ù<æW¾Ò½¾zG¼½b>8‹Ñ=ùMU=€À
+¾E1¾1¦>KN—¼ºi5¾n1´¼Õ÷.½¿ä/;‹˜=»7Œ=»j¾{ÿº¡–´½.~ö=Dr´=±È=Å¥%>õş²= 6¾]æ7=fú½­¦Â<+Hù:+¶4>ı÷ø½¥ƒ2¾Ä`C½çâê<ˆx>Àº>nR>—f=aGP½ã½LHÇ½Æ„=Ékı½†‘z=îUë=Fœ>á–3¾µ}>gêä½1n¼ÉS&>İxÅ=ş-g½"×=U71¾q>Ùİ0>°b¼—äï<¦+½Ë¯æ½	Ó¤½I™A¼Ø¾B¾øŸ<®í½B7Æ½m¯Éº°
+À½¤§(>«Œƒ½Ê½Ã(B½Q§¾µ¹»=Œ>Ú'Ò½ w‡½*>¿Í¾ÊcE=Ÿs¾ú*"¾¼'9”úÏ½[Å=•la½×Èå:J?¾½¿•=iĞ(>jÛ¼èéà½ª´1¾æ˜.>m–™=^~–=G*ø<*Ú¶=Eg=îí±=Yçã=•°Î<öï>î—â=0{²»ƒÂ¢½–@A<æ>‚×æ=Lª“½u'½Ó®=âL‰=ÿ->ó°=0h=àp(=¤;+¾°@†½ºDš<|€ı½©£¾°äõ=!ßw=Ö¾V-<›Ö=xìÑ=cc&>½4B¢=Ì¾ÉË³¼PÂç½¿Æ
+½ğrÏ=ªµ=}®¿½¸4½;Í½ı Š½EÇ½\Ê>ìâû=h>$È½l>;ÿ\½#:+½>8D½ÂÀ¼_’Ÿ½WÇ<Jßê½ôß•=nÌ¾Ó„½…ş½½Ğõ=ã\ú=Nê¾9ØÆ½T#>+^T=[ëú=®¯¾Ùv¤=+õç=")½QV¼Û>»F=UQ=\ß::"˜½<ß½ÍÒ5>kLf¼ö°!>Å>ñŒ¾½'F<tk:½@»S» *ğ=Ö¨È=4úÎ½O´½Ëo¾@²¾TÃé=ğ+á½-d;œv}¹¿[ù<H*¼>½=ñ-È<‘§>ØQ=8q»í‹Î<iàò=ğ Ü<k[ >a8Š¼^7Ê:g>Ú,¾*i‘<Øj&>°Ü¶½/o½ £/¼up=a»‰=Š%=z¿=‚Yœ½ÊN™={g½Ñ÷ä=ÿäU½}%¾¦2P<á½=Íä»Œ];¬F%:²fÁ=Îd<™Ä"¾›ğ¾êQ,<øj¼°(.>nS+½Ãp>²©¾Î*-¾è†¼u»æ½Ÿ‰T½/¤<´¾chú=¥'İ½tÌ>ı:n=®½(t¾-@ñ<¹“Ë½ax>G¾[„@½|ÔÈ½l^ê½Ü¾½A‚¼â6E<?éö<¶5º=ş×”½¶â½½.³+>¨²¼Œc¾^÷>ÍT1=Aûü<2ú<7>ş=Êí¥½¦Ê>k4/>²ì;½‡üå=MÉ=ù *>KŸ)½dÅØ½UD‡½Üë÷½ZÈ;«/>»Â0>| 	>C;<$};vGñ=~`Ø=ª¥¼¹S8½Ú=5OÊ»ó  ¾Uf«½Ã>Ù¼>nş½f½[›´½¤ïm½l&>"¾Pã­=¿Â#¾¸Ú­½Fi½¾ J<£¶ì¼ò’¦½‰¢½›¤İ½[ş½ ã½ü·.>J²«½N„¾tú=§_=©ú=3<5¾Ao-¾*Q¾ø¿½ÕnÍ¹3 =)XÕ=o¶¾T‘=Ö¼Ò½†'=QÒd=²Cé<…í€=¼%“ğ=f = >Œû=èÀ½øê=-ï<I0>Õ2¡¼éE4>“¹Ô½‡$·=dì¾Ş,ú=‚K=ØâÎ=è¾à>5¾Y•¯=›ë•½ÅQ=M2Ø½ÓLa½ºöP:"rÛ=îÈÍ=4‚¼Ê$N½ì:J»Ğ»=Ãm¾c²^½Q¤/¾fÒ<Di¬¼ÉnÎ==>àÉ¾pE¡½OSê¼Ûèº]&½ å½ÎŒ½á&–»Ã…>½9½8¦ğ=fH¾ù]<b/¾×ø*¾ãs<RÛ¦½·#>ûé>‡Y5¾ú)K¼Jù¼³Ï½Øgş½"5š½Øâ =ãH-=•QÛ=Gİ-¼KC½=lï=ì½$m*¼¶%¾Çå…»¯lo½/æs½¢\’½šW½÷ƒ¾B+<«óì»;ó?½
+*>¨ô=RÔM=Í7†½Ãé¹<•ºú½Oéı=Š.*>» Ù¼âƒ>ÿ*>¾)/¼P‡½† <›áğ<¼¨(¾}Û5¼¦Áƒ½7*ó=^§»Áï=ä">šgd½ìà=2`y¼Î½T%Ê½ ê†;=n]=ä. ½‰÷<>¹ã=Âé—=E–=BÒL=â¾JwÜ½í¾“vï=Dz ¾,¾wûï=Èf×==,¾ıÒ=/L&½Á=gFä½Dİ¼hû!=Cí
+>CùÜ=´'Æ½¤ï½	g1¼åºd=MÍÇ=Š5¾ı9n¼v.Î;æ.ª½•µ>vA½ğµ-¾¿“Ù½%ñº;Ä–¾Áw&=?1>®î;l‹3½J§+>%‚>#'ò=©"]<şE<jM¾D`”<$81>¼<˜"¾%È=Ğ„#>e¿>	<ƒê=ñâë<Z•½“®Ô¼2¤>Ïµ”<ù¸+>ıñ½±Õ¼¦;™áØ½Ø¬>ç€ş=sÄ½T„ >Ñå)>ZCÖ½­É»Á“5>“’ì½œZä¼“ú½x>Kì<X³—=!¾>+Eç¼j 6¾UÁ<Úša¼J(„=·ª=%5µ½Š‰½·å=yO=
+ô&=ô>¢=Øq©=¦¾&Éh<·X‹<( 0¾ª=`—»åS>+é-¾d+>_T²½­Ö=öš>[Ù´¼Loº½Qÿñ¼vCã½›+´<-™=/Ÿ=°ÙÑ½KÇ=ƒ2'>Ë¿]½8½=Š'@¼*£Btrunk.3.conv1.weightJ€¤ù=(T\¾·æƒ¾*T¼n'‚¾¹“Ş=š>ìYr½„¼>;bí;=§J¾Áæ|¼Ë-Ÿ=`Öy>’'€¾Ú°Ã»V|¾¡ÏÚ¼Z[¼¶Ò ¾A}=>£öS>p²ï½¶G,½&_½½š"<¨Ë=Ğ>$¯¾¦ñú=c:¾#I|¾wêm>½¸½¡<-¾©=¤‘€½‡c¾ô$!¾Ù‚¾´ÁÀ¼EòK¾–Ä”¾°Ó+>ü¤„¾›½k—„>‘kã½•ML¾9ş¤=ÏÌ†>œG½·Ô‘¼íY>rÊ=qºl=®{#>®k>%?]¾Âìó½íS>+±>=½î=l^”>¡;?>Ëö=Ğ“>oà‡¾Å?=‡T¡=õßV½)¾ßd=ö]¾®¾B¡j>„ã½†â±½g’
+>™Qœ½¸~5=jbš¾ëé/>Qk‰¾sœ$=è@™¾ı“„¾-‰x>á*¾‚˜*¼22\<%">âAÅ=mÍ>*¾FÚÓ½Âº`>ƒâ=óš=Vùh¾>v¾jy=ãÖg¾ÆšX>¤¶€>îåÿ½EG¾ˆ•>ÁÓ$¾9;v¾G:`¾hªV=súo=ã|G>Èx>Á>ùh0=ƒ‹>èüş½N´X½ØÍ‚>9÷Ï½²¡%>î„=—Ú=E½%ƒ¾Š]>{\~>àSu¾V–¾m Q<ˆ>ƒé.½€r¾2ip>K¾ÙZŒ>Ú¨;'/">ëE‘=cY=ßUc>Nºw¼ïùY>“úË=o,¾×}J>Ê|[¾lÙ >`„½–¹¿=¬İ½2Et=ºº½&	 >=5> J¾1ˆ>Z"y¾jä	¾O=ó=Ú_>èÈ=»d,¾QwY=„f9¾ W>a¤|<
+ñ<£úl¾íà$>Ã’>0RV¾Ï,Ò=É<¾€œ¥½”Àˆ>B•¾lZi½ƒ9Ş=âO>Vñ½K¨(¾4%y=ŸŒ¾$=keC¾†Ëa½#‹>@E€¾
+Í¾,®m¾ğ"8>Õ+>ŒÈG¾uíB>¿äE>ò·„¾EÖÒ=Ij>P‡\½ûÓO>tq™¼Èr ½‡R->(;¾H·—¾ÿ”e=¥,=¯<¯H=¾/v>n?¾\¢¾Å_‚¾Ú×™¾/z•=—ıø½œ=>×•>­®È=‡>8W¾$¾">òê'>TN÷½¨k¯¼˜b9¾
+î<Œ‘“¾-v8¾Ô'…¾>ñ½ùçû<Çbx¾Ñã½Ì€9>hoo<eƒX=£n¾„ºµ½Dòˆ¾¾ä>¥‡=mK>›4>Xo‡>?U¾ıs¬=,ã…¾æ=Ø‡¾^›ğ=Üuc¾rx#>©;]>jÒ)>×´¾#2A>’D¾Òy¾¾I>ÈpR=u+×½€‡¾ìÙ=j‹¾z÷t¾Œ½Ş‹ƒ¾Î1>ŠK¾mPÒ½$Ğ˜¾Nâ+½yÉ¾½Sx*>Ñ‹½ûøO>@Ü†>1|=yÅÓ½„~¾v&X¾Û'Ğ½ê›A¾Ã“#>Å{Ç½[ğ4¼
+®M<(y…¾Î€>K&ì½z¾ôRœ»Æ‡¾Ó/=aéG¾í€‡½Şºµ½|‘_>kn>%!™> =%E>5ˆ}¾=O¾4C&>yº‡=Š«=Jš0>âC>-/>êãä½Ï¹Ã½Ø ‚=B~>©F»¼„ë·½®*>ÏL>ƒ·»s¶¶½3ä™¾™×—<5g½=hÏb¾-^e¾æmš¾›dq>Î>kß˜>ç‰>¾G½ïh	>ÆÛ6>’¥½ßı1¾Ö”€>½æÖã=…x¾Ø]¾µúd½±w#<€Ä6>¸°H>¬D½cİ—>Îw$¾C¦<¦ŸA¾­KJ=rÉŒ>¥Œ¾CY‘=1ö¾ 1Š½02¾mR:eeV¾ùëœ= Á‘¾s‡=ÒBî½â8¾ùó‚>%h=Y€L¾ë!.¾ñÖ	¾Î6¾”Î=w.‹;Aª†>wR<qË$¾›Ò„>vb›=ùQ…½PĞX>ÊC}>™
+‚¾jÌ~¾f8K¾ZÖ„¾ä`¹½È.â=¤èŒ¾âø–¾Ç…¾T1!¾²A>ìóˆ>*t™>×eW;ÙÓ‚¾£–>×ªO¾òHé=­m>0¿=öíË=¾É2Ğ½¶F¾ä\U>|†/¾T€ì»VL‰>X)j>9F^¾Ü€¾}„t>YÒ±=kÛl¾B…>_¾n¸…>î£]>P&\>+m½ÌÖ<Òü€¾
+.>@<ºÄd>#;¾77•>CîM>­½ ±¨=«_a¾C°M¾!­S¾œx1¾*È«=>&¾OhÕ½uX>€L={‘¾	¯§½vq¢½f:>‹wY>(,v>30R¾A½	‘=©zñ½‚"K>Lb	½£İ=`„¾ü9_>LµL¾ì¾í»ü{¾]	k>íÚ<ø >4Ór¾ Ò<Ï#ı=´+Z>Äc>• \½Àû¼¢JÍ=	)Ş½œlû½'7¾œz—¾ù«"¾ÙI=E5Ç<HHÆ<%9=\9d½fœ˜¾$ï‰>™b¾ˆg»"€õ=¤e=Ë.¾`<†¾Ô\w>Ü<`àŒ>+#>‚ú>¯²…=tZ‹½à5¾=vo”>³59>øUŒ>õÜ>ddq>úf-¾˜?(¾“)¼ÁÆ¾Â¦§½u§Ó½İ*‡>71¦¼¬…•>Co¾Ô^˜¾ß¯0=qCv=ÂTù½åW¾ˆû¯=·¡w<Å%½¢Ö>ôa¾‚s>è¯R¾Ä ¾, Ö=ìÛ=>Ir»Üƒr¾NvE¼Y™Ğ½{nÅ½Òid½¨”=eÓ½ı¥X¾b@¾Bb¾’Jš¾sL>G,>Eui>™¦Ã<˜$ş½×Î9¾Fß>6´:¾™ßf>•'¾¾|^¾{>F0i>”Î–=¶ä;öq„>Ön:>\ë6>zDR¾¤¼E=ó‹>^ Y¾ä™>ñXJ¾µ½i¼\º =æá½=²0¾.g>†£=¡	½M½™¾÷à˜>Ÿä½*£Btrunk.3.conv2.weightJ€¤«$¾võ˜>“¾dN>C„<>iI¾M%y¾qó'¾jbÁ=L¶‘>.2‰¼y‹¸½Á±½}'W¾X^š>@pV»zt¾xS¾§2@>pm>TOG>ıF½º(t½õqÊ= –A»UêÆ½+Y“=g0¾èU¾ï”ˆ½:\¾û;qzB=$@—>@²=ílçº‡`¾§Zø½¸tI½9s^¾ãŒp='Y^>RÄ0>B  ¾„—½oş™>nÜE½»Š¾@œ-»ÓP{<úŠå½ó#½/ì{¾äE¾=LgV¾Ó¨Ô=Çh>ÇrG¾áëñ½µí<ˆ¿>:§"5>,”¼‰ÆG=ÑÊª½
+ËË=>®º=M¾x¾½ $>M?}½-RŠ>fJ™¾Yõ¼˜>ìU>ƒ€;ïó&¾İÎn¾Œñi¾ì¾x>à††¾3}ô½ñ!>¼ñ(>Ï‡¾ u=¦e=¬Å>ÀO/¼1>±œÕ¼oà‰>îFü¼æ‰5¾ïc=††#¾ã€š=T¿V>Jp¾»Ã`¾FÑ†;=¼ĞLÀ½AL>V
+>ÜÌ½F3=]í9½ÌE¾*Íü=2ÑK¾ø‹=è¸Q>ãŞ¾Î¨X<´¦>É…>ù«ó½şyB=À	‘¾ŸmF=£M†>¡;†>Wé»‰à=M½o­½Ä$¾;çô3¾
+Åø=Ru>§½.•Œ½HW¾½=}½õ=§’>>‹‘¾;‚¾îÈ<¹À>bŸ<W‚«=ùr/=Ç½û}\>«Èb>72¾á9¾>9p¾ÑC–½DµŞ»ÛI>™•¾E[>¬‘,¾àÉ<Ñg¼~.>¸8¾å½W¾Ü»â;³Ë>…¡¾Ê¿=XI£½­¾w=º®ƒ½Â6>w}K>¤J>§‚A>Šo¾ÿ0”¾‘
+=¨k³=F£m¾>|>á×½~5¾4ëS>kJ‡>õŞ==Å½ô=!¼c¾7i>>vñA>¹]g½Mìt¾=We>ö»|¾÷:"¾I8>¤‰¾ÒZk=Íğ}>8½±Ã‹½Í/>’S=„×=	Ë½ŒC…¾‰tA=
+¡6¾3Ç¾…j}¾ÜU„>äZO¾8Á²=E~=±`U>¸(>ÓJX¾)ò>>í¾Vi5<ıÒß½¢?„¾è¸=($N¾%—>
+ù=¹Õ½#é4¾±_¾€Â¾&I¾äá=¥å“= õ…>ò&= {½Ô¼	¾ÛÔ-½N#>ñ”¾Îm¾PÈó=„œ¾½êŞ¶½G¾È´M¾Û[g¾È<¾ñ;¾ñ/¾RÛw>wò*¾WÒj>‚¾åJ= ÄÌ¼	Li¾~nğ;gª€>½”¾<Ü>nü½o_Ã½Z€>#‚q>S…>„à6>LŠ¾˜±{½Hp=(Ì¾[]>ˆ½Ğ…¾¹¢¾(CG¾±¡ì=ŠÏ`¾]À›½87ş<ñ6>d›m¾ìU>nBF¾K¿l¾dzü=òF5¾…`>â(>Bó¾V¢‡½5:¾¬ê¼û¤>ºŞ4ğ»“âI¾ÂÑ€¾Ğ‘E¾4¢P=¢lı<é„¾IIH½i‘ø»]>ÏŠ¾^	¾š/½-öJ½ğ,#¾ÏÍ>s@è½r$ş<Ä¿/¾!™>¦[6¾Õ›½Â†w>Ê'> =‹¾ÑVD>!å$¾–¯½b_ü=P}Ÿ<w¿m>™é½šÁW¾Òœ<“Ô=3–h>âø¾ÀV
+½Èƒ2¾ê#`¾Ëq¾±¯Z¾Ôu:¾IË=s«)½),B>)Ál>:co¾Àñn=Uş(>üy¾d²½´t`>¦Dd¾¡Š>\{Ô<·Ù`=ğî€>'K¾·Èƒ>ä‰¾™½>É<Y¼tpr>3«y»:œ—¾%Ñ=¨nN>µet½¬ö‘¾ïe.½ÈöÂ<Me˜=aÎÅ=jd$½Re¼ÊÄ½Lğì=«S=³Mú=0Ãá¼æ¼Nc>Pæ=18¾ªÕy=Áå>˜o½rÍ9>Gd^¾±ö<½-N>y¾‘½XŠ(;¼Ğ:½o¤­½Î%U>p£a½=:§½ g>Ù‰=û¾d9>B¾õ™>C€>à¶ë<öª=pù½…Ën¾_Å[¾ùÄ=† >®Aq»úÊ½>É½lõ*¾Š‘:¾=ÒK>xU…¾“˜a>‹Š*>ò‘¨½í ½øQÏ½ÙÒ¾ŞäÆ<N_l¾{¨<×½úo¾™Ú¾k‰>p>ÔK>Nåæ= Ğ	>şO>¬vc>¯6A=ÿ<0Ma>Üî
+>¯;¾iÆO>¼"•>:;ê½	·’¾ãÉW½ÃI¾wR™>kä‚½¨x¾?lE>,¨ì=1ıµ=æŠ>y˜¾%a>è¾ú+Ğ=©ìİ½(>39m½o¨ï<Yìr¾‘€;>]æ˜¾µ÷)>FTZ>Æ¹u>ÏD<>jæÄ½9ê|=pœ=¹•“¾ìÖ&>2y¾ŠŞ=Á+•>Y»«½ñ(=Ó>‹»~>Ü×€>‚¾U¾os=¾c¥b=?.’¾=x>Q™‰¾Å<½1zÿ½Æ}>åşô¼²&@>·×c¾›q,=ó_>p‰<p€Ø½œİü½BäR>Ï»ó=»¥<}–6>Ÿ¾ ¾_–j¾‡y‹½HQb>:f•¾7j¾Õ•=º×è=fœ>‰ »=°Pˆ¾òÉ½“ù=>çÛT=E)>kg>Ú¬0>Ùc ¾ù¾y;X½×ù¼ò×¼pl½Ê­%=ügB>ViT¾Vß>5Á˜¾q<§<óºŒ¾($•>=Uƒ¾8¢,¾íL>l#>|ør>ÂM©=UŞŠ¾ñ™X¾q„S>j–¾¯‹>W:Q½*Òa=ëS¼†¸›½î‰—½V7¸=kY½júP=»q>¶‡Ş<’r¾¡åi¾HmD>XØ=|m=z$¾aÿ|¾9â„>í&‘¾àà¾<xñ=j…>©Õ½:ó•¾mÃ=ÑÏŞ»w—<½¶x‰¾®»X>ÎÈ3=Õ²=¬9>*œBhead.0.weightJ€ÍYI?¢j¾®£=¦8¿µè.¿,šé¾X“
+>­¿e?¦¢¡>z'˜¾ô¨ä>ğY-?Ñ_š¾Âí ?.|?lGY?Ü*¿ìD9?Oœå9’vw=ùë%»E£¿æ=©¾s<¿±ñ½ğºf>¥$¿¶²>ÇSc¿/¶ß>{c¿*š€€Bhead.4.weightJ€€3úO»]Ú–=ÏÍ¹½Êi¡½š˜E½ƒ.#½7+^½Or³=›]“½a9=»ê’½ı½¤½:ĞÃ½0ø]½3s[;Š¢\=ª? =úˆ#=E’­=gSŠ»àfÈ=€¬²½ZÌ?½œ¤½ƒ!½¿b˜½Â½¸hÀ=šıœ<J'N=Í´½óıº<€œ[½€ÏÊ½@H< %{=€;‚¼@w=Zt,=ü”=÷ˆÁ½·<)½3yÙ;Û,Å=7ÔÅ=ÏÊŠ½—÷†½ÈDÂ=š_ó»}~n½
+R½ %n=Š_~=k]¬=gV¦¼óKö¼Í…™»€æ³=’(¶½]O=÷½Ú¬/¼ƒ¬=3½Š÷(½šsh»3k4=’¥=%hÃ½1¡=Êİ½s½g<+b½-÷Î<ØÖÇ½p8ƒ½Ú:½¨Ç€=ç¡Ö<«½gıl<»Ç==ÕÅ½e¿²=ıªŸ=ç´;}óO½GM:=ğíA=R½×ùg½oR‡½ª¥½ó¢ª<ã¿/=g»0å°=óşê<º$ğ<)K½+ï¼Ğ˜ˆ=Š…Q=Ë@¼rp‰½ Û¿½çò«;Ğƒ½ç¼Mpˆ¼á¿½Û­=ÚÚ—¼¢É½Gïº½2£½ıœ ½€wË»êé(= ‹[»WøÃ½÷k£½Ç|Q½ıÌ =ç‘•»·>½½‚+½ a•½³[`<ç‹¼ST¼Âß=€Ğw½ -<z·½0<ïs¢½³Ÿ½m‰A=İ›ˆ½Z;½³X¼ú ½Oğƒ½ÚÊ½'J@¼s"°¼M
+¹;³¥»½Ú†„¼xÙ³½WhW=;wº=ÈÃ¡½{“½ê–Æ=Ÿ= g<=‡^½F =gP»“1š=-Ñ~=3e9¼'¬=Wÿ²½šêŒ<}y½ˆœ¢= °”½À²½è^®½éé¼3)²;g³;¼@(=ØÍµ½W´p½óòb¼ÍœP»™±¼<=ÚT=€/“¼³¾Ÿ»Í¶¼§4 <`»+½3x¼JK–½_I«=#Œ='‹½³¬ò;ƒÃp½“'¥¼Ó¢µ½¹Ù»p:½ó	¸½²É=MÑ<ç…Œ=€´†< Ö¨;@;½š‡#=CZƒ=é¾»S½—¤=@±¼p‡†½-Ôh=ÈFÉ=İóÀ=[¨=[È¹=’ÅÊ½ó¨=[—±=‚³„½Ç,Ù<z~½ç)í»ªã==gÄò;”½Vš¼'1=9O½Ëˆ=õ7¾½ÊØ‹½Àªâ<3B!;sÕh=m:/=ç( ;šşy<ç§•=O“À½½*½Ÿ%„=? ½J¾C=Sˆ=G=g(†½šqe½³g½<0Â6½Ç!=z2ë<€X”<èh¹=İ‚Å½œÄ½8tˆ=:‚	½mTÃ½`×½ Ğ›=€êf¼Ó÷G=‡´n=§ û¼ã¡T= Ñü<šá‚½3¥¼Àqx=N=³÷c<	I¼’:½Ç½Æ„=M‡±»Š…u½@€Y<ƒÑ¨½BJ¼ 3†»oŸÁ½ ¶‰½ÈŠ½•f½j§=°z=
+Ú½M™.½ës–=HÌ²=' <šë®:xæ›½Í¯r=Úæ¼Ít<íĞ¦¼ç¸=Ó¿<“Ğ¼¼suƒ¼3{›¹­H¢½ÍpÂ»(U™½Å=bP='-¼2^=s«<ê"»=3m¤<A=3‹z<Sh½àÀ½½É"½u< =ªiQ=ÓÑ½úË~½Ê¬É=3—1<÷Œ°½Jã½gIá;ó ¼-d½g¼ò<ÊüŠ½ƒ‡+=36Š½r"¥=(N¤=ïşÊ=`ÅÈ½-?½ú,¤¼¿*½½Š8=]&½3ïğº°D=öŸ½À…a<£ƒ3½‡´=Å³=)À¼òùƒ½°¡o=º‘½°dÂ=¢—£=·¨/=mú@½[-˜=‹)›=Sôœ¼ Ûs½ ì;;H =Pu²=²†½½‡)¸= e„½MK—<Ã86½£Íf½ó-¼gİY;Å6¦½‡'½ªg“=à‡»çT½­q¯=¿}¿½'ÏÕ¼†©='$!<÷i½Çz]½@LÍ¼°³b½šUá»ò¿=Æ_=ª`½÷€~=P¾½3Q†:ˆ­=`Ğ¸<Bu¦½Mk“<Óu|=3¶ ¼#0q="0­½Á‹=¥«Ç½Š33=¥¯½“©ù¼3¬¼ùw¼šŸ6¼?€œ½›‹’½]I=óˆÃ<Zú*<‡3¼SµÔ<Z†²<3¡°¼³rí;3Õş;_w´=5»½Â˜†½Óï7½#ä1=SV‹½)F½×4½ZT¼Gn¿½Sw“<—£š=7!€=˜ĞŸ½ú÷¼íV=ç¨=ª©6=`n+=:cÅ¼3c‡=7»¿=ƒ|=€	‡¼]2= =?ı¡½à â<ÓzC½šs¦;:×‡½íª—¼šyÉ93Ò}½P”½m?=I½‚¹= y?½½>«=3¶X; Zn½gê“»P›½3ƒ’<½,=‹»½s¦y<ŠY=]B9½š/û:—”[= %Ÿ½‚X˜=;‹«½“è÷¼=d=Må‡¼2Ç½ÿ”‹½šr©»š½ 5‘¼è¯ˆ=Êu4½ó<ó°½Œ/½•`¥=m‡*= àåº-Í%½Ó=½Ó¯M=5½ÍŞ\»à7u½PU½€†ƒ;óàw¼é»šš¼ğ«=:h<Ë¸=Müâ;cA¸½gá¦»§=½–½gH;Ía°;Hµ½_ùÂ=šbÅ¼u˜½`t‘½ıóv½í|Å½•A=-·=ØÂ¨½CÓf½Ğ¢F= 
+Û¼OnÇ=sßP½ã½4¨½Ç[ş¼ÍÕŠ= ¬‚¼ª¼½J:b=j²d½g8ó<+æÇ=ò<='Íª=£x™½ó,š½ŠÇ½U‰=ô”¼­=³1„½€Ëò;×M½=3õ‰;]Ô¬=Ui‹½@!< Ùµ¼´º½#íP½ê¼U\Ä½o»‘='úf½ #®»3İŒºhòÄ½à89½m¶ƒ<3’ê¼ªrq=º½é<í{=Jëf=gí‰<ÿ³½º2=m£å¼z8¨<‡)
+=:$ê<—h”=Hæ½=;~–½Íº>½Ç¡.=ÍG»ºV¹<±¶½ó&½3ÃÔºÒ§=v–½í»<óçJ<ÚŠ1½	1=­‹´=ô©=ç„º¼çÆ•»Íxˆ»Mõo=Ğ]½ ôË<°‘k=jj=ÇÃ$½òi=‚ ®½€®ü¼Z¥=K>½ÍØs;MŒÁ=³G<šùºº»Æ<úÉ‘½ÂçÉ½P©A=s¶/¼­Ø9=³~§»ÈV”=Zµ½JòQ½½>µ½Ç©½«l=š2¯¼J)N½0Y½€e¼sÄø¼¼Â½J¸‹=ÍQ¸»q“½Lê<sF ½­7İ¼Zº¢½÷2È½õ<CÇ¶½°Ù„=‡¦¹½ÀØQ¼ö½¤½¥;ª½@ˆg½?Ï;Úå><
+O;½€Yu=P½ç‘¼—W=O*¼=]ì­=›…À½¨Œ½ Ô‹<Íˆ‘ºbQœ=÷j`=rO•½.½=3?ô<íQ=§Ë–¼—•=Jz‹½€Ã4=¥êÊ=GXî<¹½ÍX;ª¨”=óËm½3xL½ÇÍ‚< â1½Glß¼÷û½ƒ`=úD°½§¬¯½ØšŸ=š1e¼ ë³½­ÊC=Ë¦‚½€ò¶»Ó¼x=Ãf½Íy½ÍMe<÷I½­Š¿¼0:•=$¬<m`ê<Kî¸½ƒ:}½ˆÈ½‡·Ç=ë½NÅ=Ø³É=Šz½]˜.=*"½8íÄ=Ç“=3&ç<@8U=sÆ`¼öR¼§µ\¼ç<½u¬½€-X¼ç4ø¼ÀN§=»=¦¶½ s¢½ı[I½sÈ½³Úî»Z×<À.¼‡“Æ<@\Š¼oAÆ½}”g½¨Æ½0®h½ÃÆn½3¤•=
+J½g=¦¼ƒ±½½ó½Í5\<:Ê³<³¬¹=Ê)=š¶¼¸;—=íh½gé¼€Ÿ¤<mEè<MÙ½så7<êó%=³9Å»Ú7½}9º½*uw½£Ì½îœ¼?Ş¢½Í8½W/¡=·À½C9ˆ=šŞ)»İó\½¸A¿=¨ª=] e½‡‚;ğ)½ó¤¾½mzT=ğÉ^='Ö®=ú/w½mÜ¼ªÒW=
+Ød½…Æ²=Í‚;º<7Q=÷Gu=s¨Ó<‡tp½È¦·=J5½@—K<"¿Ë½§W/½G.•=3bD<³ù<]F½ğo¦½2€™=è‹½à#”=İşj½gñ§= ®s;°å‚½b[É=%õ¤==	Z½ıåm½“Xå¼gùºR=}Kz½7‚F=(àµ=ww= ½ˆ‡Á==€½Í*†<šÉ½àÖ'=õÇÈ½wƒ=øg”½OöÁ½P«½âb–=Íı==hp¨½ã_W=“]Ğ¼ú¼A½Ğ{Â½ZhK½ggÀ=€µ|½à½=€÷½bD½½s½ú0=
+Ì6=§Gª<3ã<÷Í	½ éh»¾Õ<XT¼Ï4¢= V²=İ¶=ÿˆ¸=J¶Æ½ÇP ½KK‡=p†=óî<`·ı<Í[< {< ½ó¼ĞP=2CÁ=Zt¾¼Èµ‡=GªÅ= Ç<]'¨=º„U=Âè²½ópy½a =]Ş ½Yú¼Säå¼‘§½ m©»í”’<º4…¼j–„½'»Œ½@	«=ı¯=CÀD½o"Œ½:W­¼ğÔl½íÇ½í%–½s ¯=À¡Ì¼r›=SZ"=ç7ì»j½úbŒ=³^Ë¼’Ô‡½Êó=÷À<½}cB=óÄÚ<ÍT²½ƒ´D½mŸ†<š·N;ú™<úº»Í¿º¼€Yw¼m+E=÷—#½W`½P‚º=°¾=²“•=Ò*°=—Œ†½“wŞ¼š3–½z³0½¸U=wC¿=0ÂÂ½}€=Ch#½©£=;®<b¼½CÔ†=Sá}½Ñ)½½N½À'6=°÷=°AX½}Wt½“jˆ<Í<=SöE=Šp¦½£==ğ¸½'§¢¼²¼¥¼¹½zÀn="µ•½zÌ™<ŠéN½m)E=í¢è<Àú==³k&¼Pœ7½ãË½ãÌ”=`4Â<êë:½cşN½`Âµ¼SÊ½@Ÿ½¥¤¿=÷ZV½K+Ë=èÛ©=àds½7¡5=‚î¹½k'<—ú…½…½S»ñ<@˜/=SÂÏ¼M1L¼j­=å!Ä½ y€;SÆ½CÒ½ïı±=€,½j4½İ¿½×Æ=7Õ=@½Úh¿¼¿/¥=gÚÄ½ZD<Âõ–½xš½‡•¯¼ ƒ!=…¨Ê½4b½Z¾£½“ˆ©¼à©>½ÇÁ]=ÍD9g´T¼³½3µ<;8šÆ½j•·½İn'=ËµË½³×™;-ÔÄ<g%Ç»Ò†‰=@˜²¼¯c=à„h½Ru¢½¿Î†½@Ÿ_= <@àG¼š§2¼ƒ$&½ ›¦<Í¬Ô»n,¼0b/½K\†½šS<MÉÁ;§´½—æ±=zx9= Û{= ¼ñ< ºÛ¼·Ä=>= Ø =WÄ½“=V½Ín»İÍ¡=£…_½úÂ$½Í”J½…8«½ ú=M›k¼'}#<×¾Ç=3ÿ<›Ÿ=ºG„<§S.¼š‘y=sWú<g$?¼šú[;P<G½gØ¼á‡=“Œ­=§ƒ¼=hm•½g2.»*M$=Ò‹=*b½F£½“=Ğ•k½3{Ì=H#€½ı°I=:Vü¼àV¨½X®Ç½³æ1=íÑù¼«Êƒ½ÅÊ=
+;p=xØ†=Ó8½MŞ¢»S>µ<ÍŠ<¼ÀÉD= LÇ¼ç·¼§s+¼Í4!½jŒ½3ã7¼ ‹½p½à3½j«==º!…¼]Á=3ğ<PS½ÿÆË=Gòÿ¼À¶¬½¸Ÿ‰=Ni½OÙ‹=?ôœ=CT½S"½Sl=ãÉL=ÊÑŸ= ¾Ñ<³¬û;*>³= n½<º¦½sÚÖ¼š1À»ŠU=
+‰Ä½u¢Ë½@Ti½@¬Q<ïòŠ=çšª½7À)= «;RÈ´=Í¥d½Sÿ¼ZÏ=×Ã½xõ=
+P'½§‘ <Ã‰½½O¤=ú< oK< pF½ƒÓ”½³ñ< ½³Z‰»_²=àoæ<@bá¼Ç—½])=Ï<¤½Å	¤½'º¼Òo=À"f½š=v¼÷‡9½£X}=#˜H½@Zk¼s”>=*`*½³BÄ=÷w\½³{½ç¸Ş;3¶@½ÛÍÈ½›G›½ªr¸½ˆF·=Í¤İ;cìI½“w=ƒ¨;ÀhH½
+!†=()…½’r½Õú=àúJ=#3@=G=Ú,½­MÅ½šÁõ: –[=ı…=š¼:Û&½šü*»•t =3¸¨»•cµ=Ÿ½{À<bKƒ½³Ü;Êyœ=MÕ©½—V³=3
+›=Í—œ=''½×hŒ=Mln<ïà€½ßûÃ=W4Ì½Mµ=€Êî<ª…=z8=C¼½çÛ'=/“½÷ù½Sî¿¼ıha½zş†¼2= S=âé‰½UI…=-§<Z‚B<3³<—…J½hÒ©½íÆ»<ï8±=(&¨½G-¶=[U=Ç†=Ó$z=%Ãš= ¢Q<ºE½G[l½Y¦½çš;ÀV<àG<0Ù…½°=Š _½?‹³½SÉ=§—¿<#È¤=³ÃÔ;•m»=g}K»pë"½ÊYF=ç¾š<mO½§H¸¼ğÊ9=ÂãŒ=CáŸ½;½•b=€7“=s’_¼}½Ã&=RÌ¥=6†½3"Ã<šmc=ºvå<×¿=àª¾½-ñj=@¼<J½szÁ<‡	»¼ÍB´=€w½š„Z<}º½ƒa^=3o›=d‹= ù=“¾¼½M˜]< 	g½ “ÿ<sme<#n¬½«é‘½*ØN½G=µ½ã/½ºÚ½ƒÓe=P:D=µ™½sı]¼ ¸Â<Ñ¼`ÜÅ<Zˆ¼’µ½ó'ª=8’“½z¨5½³ü.<MXú<Úñ=-Ş<}¤½­¦½]
+­=e:ª½¨ó¼_q=İÌ›==Œ=ºñ½ıá =ªõ/=Ï™Œ½OÕ‹½šô;C¯µ=€Ÿ½íXÿ<(4˜=Mj=½Ü"=m—ú¼­^m=øÂ½_é;†Y<šŠ¼¼¸¾=•eÁ½Óã½Z¬=Ùá¼m¾<Z$#<B¨=g±:­ø¼zÚ½·Ë½7½=ÍìË»å¨½@ñİ¼Ó}¬¼$	=àŒ½'oÆ=é¼½Ç=g_: ^=Í¤
+={¢¯½W¸½”<‡¸¼m7½-÷1½?Ñˆ½ğÂ/=-¦½@mM½z®W=­í,=ú½SêÃ½SF=d¨=šqE½¢³=s­L½s=Jh4=Ÿƒ£½SÓ<R½:‰à¼šhR;‚®“½=.=»ï=z‹­¼ºÚ;=OA´½'_< ğU½3˜C;@ß½ç^½GOÌ¼{g¼½Ç­7½pö;½¢‹Æ=ÀéL½gx)»í=ê¼ğ5¡½ú‹è<‚¼–½wæ=w2&½½ñ4=`†=k=Ò©À=:C¯¼HË½ZM½¿šÅ½ ˆ< û¸½ºh…¼´¨=3şd» ˆà:¾=àK½Ş½½3RY=ï4‹=@W	¼[ô¡½Í‡°<zÔú<È½].9½šI:G¦r=šqºˆ³Á=÷OÀ=“Ï<Uz½HF½³ƒ×¼3¾<w›{½[Ã½3qô¼ã”½:ä=`ÛY½óoö¼“#.=§ª<gú:İi='X‘½úÖ<`ò;ïÄÃ½ šñ<@]‰½-2Ó¼Ğ£@½Ó<À½m„=@Qr=Ë@<‚…½··=Ê9½=½Ë–½³g<Sl½Lk¼¢üÆ½GÒÖ¼’Å¿½g4’½—§½è8‚½U¥=1ÿ¼S‰½§Ã=³W<½g§½Ÿ%Ÿ½Ú¥1<‡€½@(=Ú¥®½¥c·½šJg=šÿ0»íw=Íää¼‹½ˆ=ÓÌ‰¼2N™=-5à¼:o­¼:¿º¼J4k½ú  <ÀfÎ<Ç$½jßz½ŸÆ¡=³§“»§<šŸn½šV’=ÛÅ¨=sG±<˜Ìµ=ª|n=M¥=#ˆO½ğt½S„¼ÚÊN½'ÓR=jÔa½Šo=W³_=§—¼ß[º=í4@½zè3=%öŠ=gYw½Í¦º¡=%ï¢½=(T½Í¾É½R‘=—IŠ=‰<@ó‘<LÅ½‰9=.E½­ª[=x´ƒ½àŠ½e×=ç<çî¼@W„½èw³½»5=s°½ú]±<Ôs=ç^Ê¼y@½-Od½'<š-/¼gR(:`¬Ò<°”·½šO=SK¼×°½×B½g¸Ô:´²=¿Ç=à¶½`›‹½@»Ÿ=øî¥=`[m=ÛE½½-ñ‰<ÍA¹<SWõ<X5½§< Ÿ!½¥€=pª†½µL­=Scæ<Ó Æ<jæ9½Í+À»ÍßË<Hv›½Ÿ\<]=™#=¢’«=³O½?àË½×< ½h½ÀQj=§Rú<2Ã½š‡½gR¸½Ğ'= ,Î<gÊ÷;­äç¼á²=	=¢¹½@3½§sÚ<¢}‹½§Şt<(²<ÈŞ•½7É=ˆÂ…½­¸½zQ‡¼P×7½s6<ÊC½Gê€=‹–Á½ú½gÔ<ó‚÷<§ÉK=ZŞ¼Í·–<ê)ª½‡½ ‚d;•¸½Šb½3*Ú<ˆ³½] •=·½D½ÍŒ"½­Sr=tì¼º×<Ëg³=£O=BÑ¥=Û–±½K_¿=g,
+=7j= ŞÖ¼º\l½š ”½€Ö;¿å½8ÀÄ½}<“=*½ ¨°½·ÖÅ½:´«<[†½MÇö¼s¹½:8@½·b`=C¿Ì=wÂV=ÛÎ;¾<†Ÿ½œò¼pf=â'‹½×m`=­øp½¡º½ú—=­À=Ğ7¿=wŠ½¯Á¬½Ôˆ=wª½ÃD‰=FÌ=ÍØºÿh³=«£¦½‹Ô=`=ãæÈ=)Ø<m†y=³&½§vg<3I	=áI<í^=:»=‡®§=sÌ¢½:\ı<P”½‡Ú·<Ã‰=Š$~½
+-½ûw‰½ˆ¹°=€v3¼sô½'-¼3¯÷:0;^½Ó¼§7}½£¿=Ç ¨=h^=:­Ø¼ıP½Í½È==¡½_ü±½>S=]İ‘=²	–=@ˆ¥<ÍA
+¼ç¯Ë½Yª¼ã:E=Ğ×-½wá½@³X=ã½š•o;õıÅ½ÚÀ•¼ —õ<ÍÅ]= „”<Ğo/=ËV¡=À Z=1G=‚÷É=À.×<@’–=#Pu=š­©½èö†½òl‘=µ#Ä=­› ½Zs=ÀÚ§=åÉ¥½Æ½ß²=í+¼ 	=çd=Íö²<pº¾="³=0vª½“WÖ<í=ä<çîg<ã½=m(=óFù¼£ÜG=GÈÓ<Nƒ=3Ú¼­^Ú¼X=CM‚=mb=¸^Ä½ZŠ(=3<K¡Ê½`¥È½gIp<Ó`š¼K”œ=M­å;—L£½àt…¼¬^=š­À<²~·=d˜=½j=Å¼=Jêw½ Ò<Ê›½MÊ¼@]<ˆõ‹=Çq¢¼Gw"=#=³™c<M>R¼ªÁ–½ ¿c½3H;Ç£<³_¼Âr¸½
+ır½`ão= 6ª»=*Ë½ğ@»½·ú=½p“¸½÷‰™=¯Úš=ó&2¼·£ˆ=2’<½ÍsÌ»*í½=.½PË|=š´…»Pa8=ƒU=0šy=3“Ğ;3/¯;°›m=ğ¦\½Ín:ííã<Í®å»Íİ’¼¹J=×M,=ú’½ ÛÄ¼‡v½=õV=ƒ<À².< £F=šıê»ÈÖ‡=ã‰¼™b=êø3= d³=3p¼ j\<=}È½%½ª='ç <mß	=¿¹½sö~¼²È«=D½ üå<Ó½o=êM_=ú½=}ÕL½šÒ½Ó2ë<šöv¼?ğ½è1¿½,§=º']½½Ô±=Ê½}eN=°½¥“=;Å=j)­=ƒóO½gvã¼U,‚½‡¼uø<e Œ=ãˆC½3Åƒ=¿©¼Íã;·|†½ZmÀ<îM<åK…=à’=µó¦=}™n=Íæ	»]¶t=zÌ˜=`i‘=ÃÍ‚=Ê­½šÕ‡; >&½#N=úÈ½¼—*Ê½Z¯1½:Éœ½º®­<Õ,”=³¡»½&½@Eÿ¼’î£½Í°7=
+#q=½d‘½5Î’=Ğ\=sÜ³½‡y= là»ª‹U½ç#H=Ğ4V½ :<#¶Ä=wˆd=s,„=à[_½ên½`c= l£:è–=L´=H4£=@Ìñ<ªÂ…½ Ãí;ªS<£Øy½sÜH¼@…T<p½€‰8<#V¸½ÓU= Y½SF=³Ö_¼İDu½z›Ñ<í7™½À¦}=Šã;º*±<µn=Zúˆ=c•¤=#xˆ=Íu¼š9\ºØ9¯½'$¸<3;E_•=ë ”=gçz¼:‹S½c^Š=š¸®<`çU½½æ„½Ê½ 9:=:>=šªæ<ŠåT=¥l½ÊôÃ=z!L=:S=3&¥¼UÈ²½`«²<€2¡<SÚ„<—ÏG=Gî@½@¥¿=3&F;R®º½Ã:½SNÈ<Å]=Šñ-½š²:½ Vˆ»ÕÂ½]²½S.½pë°=°Ì€½@I
+¼»j›=:y¼?©=²S½³İ¼³I ;ãÀ½Sßr=Í[:»ûË½M¨&=Cd"½N[½í¡ =gÉÎ<ıßz½ª=M¦M< c½H‰=šÓF;Ê†7=š®¼†
+=3•Æ<7bŸ=Uı±½ ¥·¼ÚÆZ=<½J„•½ı„=€®Q=0½==°=§‘Û¼7è½ˆ?„½ `ò<º(œ¼åzÁ=ºH‡=³<<ÂèÅ=š+5<€«¯<zŒÈ=€oH¼Àñü<ç”Ç»}ğ½=—34=p½Ëoµ½'"M<3ˆ¹êÌ0=0Û,=èD»½§+©½sÍß¼Õ¯½gÑ¡;çt=*;Å=€ï¬»`½$Œ=[¯‹½·f=
+/½]aC½{'=™ê<ZBã¼×z=Y´½'-å¼'_½Ëè–½÷´³½b¦€½Çã==·^½£=¹=Sv ¼gãÀ<½•=Mu»<M„½Í9j¼'ºˆ¼—9½ç“u<¿›½z«<€ğ‹½«B¡=Ú]@¼r\µ½xóš½ˆ¾µ½§l	<š²³;7{N½÷G½ê4›½Óåo½-½“zs½0=šI=0²7½ ò';ZÌù¼Gê¼'C8¼šãÏ¼ø4ª= °¸;£ZS=¨=š%Ö;šS< ¬ÿ<E@¶=G,¤½zó<@Ô<í•-=gë
+<°Ş©=Õñµ=@¬¸½'z‰½ƒQQ=zş=Hc=ı ˜=*•Å=7%6=§i?<Uÿ¶=[!¼óÜœ¼<½[°¼=Ílm½§c‡¼HÉÆ='µ½£=L=ÍÆ‘º´=ŸA•=K¸=‡!u=ÍLd¸0#?½è¢=Ê·F=3y¤: ”~<Ú 
+=w^‘½« ½&®½ÚgC<@<k½Íüã;0y ½™‹=À‚=úüÅ¼Ze’<€+õ»ºù¼ó™=
+Õ¸=ªM”=m¦½*w•=ª¶x=3Y¥¼`gB=À6<ß½#ô}½íGê¼]·d=3¥» 
+5½úk¾=ï:‹=ZØ=¸¹½*·%=p2È= úè¼@½ÍL:¸à~º¼ûİŸ=*ÿ¿=•ª==M!½]ú“½M_‚;óœ½³e¾»`“Q½;<= ùº=sœm=`éÄ=p<z=õÃÄ½j <‰¤=€ú_=Ó¡½ı£É½Ív;JLÅ=gg»…#½ãgš½'BÓ</à¦=*á.½ß\¹=sõv=zhÇ=²h=sÔ›¼;!¬=×½oä”=³Ï<bG¬=£ğ_½s¤½ÀÛ„¼y$¼2q½E,Ê½Jg½UDÂ=oaÆ=ãÄ½£,=½#&0=÷L=p:=5ê¯½­4t=*ê;½ı0T½š²==Ö;=#Õ¿=  :@ñ–<ınW½¬¼àæÊ=Úç­¼s[=sû¼O&¬½r¥½ÈÑË=SÂ ½êc½W[¥½¯å›=g”Û;@7<ğ  ½©n½Ò¦½G$Ğ<)½Ø²¼šı;ga^»s{<z‹½€-l½À;á¼]Ê=º7™½çŸ¼WR½šİÖ<ÓS½L£=ºQª=.§½Ç™¨<›ñÆ½€Bê<R›=Á¼Ó»p=êy½šND½­á<C‹½°ü½¯Ó“=½ÁB=;^•= ¼¹=·¤=êwK=m¹k=Åc¯½°r]½g::Çö”<b±Ç=íß²=M€1½ò›„=Ñ=§XJ½kAË½§x)=@y<ÀÆ<¡=õ½”½'Ê‡<CÅ½óq½ReÌ½ı‘ª½s™¼÷¤=h½ÍŸ<LT=Zëu<3M»#ã”=ØåÂ½€’ª=wi©="¢°=&˜=Í¼Ø»s£½]:½X<¯½½~½0¶½¯^=–2=°Š1½ L*º'@ <šó:0Ô=L3=+½À»Á=jë!½G’+½Ó½Ì=ãl~½-ëÊ¼š¯<¸–¸½pD–=M› =#ŠÃ½ZGx¼:?‘<êv=÷Õ(=L¼(2³=­É¯¼³ˆ©;È‚½
+†k½ ıì¼ŠJ»½À[¼óN¬<>½ò«½‚„µ=*Œ2½ƒä–½¾Í¼·š@½yÃ½¬Z¼Cr:½àğü¼Z¡6=Í}›;È«=@Ì½‡K³=wÑ`=G“á¼ó©=Æ¿=ZŠ"<€šã<“ç¼gó»š»‚O½<z¯.½à	Q=§{<­¶½“¾·=gõ<m)C= ×Ê½÷Õ¯=`©÷<€ˆ ¼“†½@ËŸ<M=@ƒø<u´”=ÿ«º½eyŸ½€Æ=ğ¬=Úü¼Dc=;k’=;¾“=G´B½½]V½sXà¼µ—À=gû»G®£½mÚš=}C!=Ó£„<ÉV½e”=³¦½saK=ç+E¼C&½B_¸½i`<×õ@½ k"½§ng=’iƒ½ÂÁ=?¦=•=Íû)< ºœ½§¦¼¼GéE½sMf¼ßá¾½çø7½ç¶¼š™¹6­NÓ¼zÌ«<óA_½ø‚‹½P1•½xr½=Íğr=È¹´½&­½³7‚»S©[½€İ
+=sõ½€0<{Ï¼ú"Ÿ½·¼ÿŒº=òdŸ=«‹½gFó<rç±=çRÂ;g¼7%¯=šı¼:óD”¼ã	½=—R,=ëà½o—=ˆï¨=*ê£=çÆA½ı¥½7Xƒ=(°˜=¨½ ª=])L=zXõ<ÍYí¼šPV¼ŠÂy=MÕ…<Õc¢=†}½t½šÁ<¼0ô%=c®=ÓRY=Jüb½su‘¼°s=íÿ4½Óc’=§Y=göb=Z=í>w=Jz­½ú¼E|™==õ)½@8	<ğG½ ó»ÚôŒ¼Í3ë¼d‘<—¼=g˜ú: Hë¼ën§=Ãç:½ÇSÔ<gşñ:½ğ<j»o=@ïØ<€"è»° /=§m< ¼½°<ÂO½MÎ<Ís½Ğ{8=¢ÆÆ=Ãe½ß;·½3¯¨=7QS½/š‡=êğ=ƒ/½Í&;ıx-½z?«=Ûo“½ u6<cUf½/[¡=ñF=¢ó°=wû;½S
+=Eœ®½Ú`s=Àù½=½óF=ên€½Ã'f=ğ€'½Sï=Úß½ç©;§&<xŠ°=€ê<ú~<Z_—¼e Ì½Í6½g½Cq=³¦í»‡Q =ãzT½ÏÚË½ƒ=€]=ÍqX=Î©=‹¾Ç½çó<Z ¢=÷BQ½ÃWd=ÃS=Çb®<2âÃ½7@=Zê·=À±`¼zP#=œ=xè˜½_Œ¾½Š·=šy‰»*@½CY¿½%~½­^İ<à·–¼]ø±½šÀ%¼³¶¥»•¿½Gu=òŸÌ=OU‘=:¸½Êö{½‹ ½ƒ¬=-$B½S—˜=
+n*½—ì =(Ã=Í¢G½Š(4=#™H=úı»<mÇ½œ½Àâª<rP¹½½`ˆ„<©|=%wœ=SÆ«½·j5½?¼š »ZpÄ¼ÕÖ½àÙµ¼‡ƒª¼Jox½Ó¨=ù’½8‹¯½{”<½½J½"O´="†½Ÿm‹½ ¿=Ó€•<­"Ä=»Æ´=¢BË=J>=-oq=JJw½çDç¼ZI*¼šYÃ¸s =À;ø<ã)¾½³Ï<3«»;³Q9=÷/½ Æ«==®½ - =èø·=3¦½W]Š½ç¥†=$£½³zË»§Ëj½G!W=»4Â=}ú¦=í°=Ã`= p¯½ú	Ş<›n»=êf=÷€½ú0=§Ÿ¶<àv½‡³½‡f½eTŸ½py½À~<O½ºŞÚ¼êR
+½*ù8=½H¢½@Ã=KÈ=uİ®=…¯œ=À1:¼÷ZO½Ğ¼À=úîÄ½ªğÃ½Z¨§=Çî½ÊŸ‡=zJk½E‹½0ş‘½š¸B»gğ¼ºí ½×§<ğ„q=m[;½Wšk=-½“Yó<Q½íÎZ½wÆ=¢<†½m¶Ä<fÂ½zrY=›‡=º°Â½?‡½•ëÄ½gÉ<µŞº½*†$=•—Â=CE¼-ÛH=[š¢½‡è =@ÆF¼ªl=ÂÌ=Sª”½{o¼úìv½ \%=EÅ·=Mmx¼Õ_·=øåŒ=ºY¼r_=¢¬= …è;˜6¬½€…Ş<xQ·½€Èµ;µİˆ½E=¾=C$m½÷o>½íÆ†=]~„½WZÈ=Ó<‚<jêV=gXt½š¯k»_<= M=šÁÿ»=•³=-ò1=íFé¼“Ç½¦=c™=3À^½g>œ;Ó.?=_>›=ê ½¼5=@i½g’
+<:{¬¼óË¥<ğÄf=gJ&»OPœ=Ğ‹½]:i½0»¨=g$%;G~ä¼:åÍ<:$Ä<Óˆ€¼úT½—÷O½úº—¼º;<ÚÁ¼½@¶=3óÚ¸3Ó¸“Â¼<sf~<­SÆ< ˆ‘¹ Ö<¼¿cˆ½JA=C¼=Ÿf…=p¬¿½/8Š=`[=*H¹½›‘¾=O8¦=Ê+¶=õ.´½“sñ¼³Âú;}B^½ Ém»g¼W=O‡½s$¼Ú_«=‹‡=í¾¼< ´Y½Çp½“µ=ó…6<grë»(Ş©½Zå½ÃÄ½Ğš9=T3<º¬¡¼ú=g·‹<`³<e)œ=àa½³	¼‹–­=Í8¼3+0;—“|=Úä<’ı»p÷[=½=*ûÆ½:€=­K›¼ h<M…Ô;ˆ´‡=ïş±½ ë)=PîW=JÁ–½³j2¼*.X=ºv€<?Ÿ†=3ÿ¤=¢%°=}ùÉ=÷7Å=ó8j¼ÍŸ±¼ÃO”½a³¼àé<z¡S=€–ñ;×÷z=ã#µ=ĞÖ†=íì°< \•»ØC‡½in=‡¹0½gc	»İö=+IË='´4¼¸e‘=·’¥=İ½³lj¼‡,=Æ„=õT˜½cC½-s–=EY=ÇÍ/½ê¦s= Z<Ê5½
+É:=ø¼=¿•½÷½ˆ½,š=Í‡¢;C_U=¯­¥½j¡½¸7’=ÍÓ;€Ï;³µ%½×s=ó¦Ã<…}Æ½gµM=sG<çÌ!½?«“=jA=Sş)=Ìš½Êda=®½£¨%½ç#ú<ÙV½s_o=zRe= ,“<”=3}ƒ»Ú½¨o‰=Í|0¹íßq½Šú(½S°ı<ÚL¼Í7˜¼PA=úÀ½Je½JáÃ½ x™;'Äí<mQŒ<ç(<³‘ß< 1“<¿<€<½×¿±=ƒs½½\F=UÃ=æa<Ğc½`pÇ¼Ã¹½zc½ç¡(<2|¬=sD‹¼g«³»ÍÀğ;'!W½F½'iš½M|Ã»íQë<÷3’=0É½}€P={Å©½£ÅE=ÏC½÷=ƒ½gP©½‹[­=;ª½›‹=N°=º1…½õ’”=ú»=?Å½õÈ„½SÔš=³;y½Ë™†=øl½ N}¼"rƒ½  x<]y½àOe½š.—<3xd»gÂÒ»§G½]“m=Ú»=ªEt=œŸ½ï/¨½‡e‚½M¬©;i×»@zg<·¬=êw=—;K=àVÒ<½g¶¼‡Ø½c”½€¥G¼ª’¾½’œ™=Ÿ„=³Ã;00ˆ½À õ¼€šÇ<çÉ£=Jcª= Qÿ<÷v8=§§Ï¼h¨‰½gÎO½íà½³%W<ÍÔ :‡‡=º›³=‹½*v,=*½}ÍF=;%Á½3û¼ª£e=Àì²¼@0N½£–=cı€½øµ‰½MUÀ»ƒU==ğ…½E&Š=@Æ½¯=â)˜½g˜°; £‰½ëB¬½PoÉ=ıJ*=Ç¬½£Ä³½3í®»{»ƒ= Çc=ç>;óT<e‚—½Ây=šà/¼ëë¤½…³–½§Á¨¼¯ÿ€½Ó½ÕÇ=³ßŒ;JO^½ÍªŸ=h¾=Z4<ÍO$»@3B<À¥¼Í˜<Hÿ<È”š=×Å@=çõ <š¿ö»sfœ=*,&=ZÑ=ãDŒ=‡#©<Zêä¼36Ñ<íK½s{=j ½sÉº<Gœå<ÇV™½Ëıª½RÂŒ=C,Ê½À^½Êäi=sœË<ú8Ä=¿êÈ½ S=*z½íó*=õ•=Û´Š=Ë½÷½å_=“L=S{¦½³Ş{=Å`=MÑF½§rô¼Š‹“½›½÷B=½š¿¼gÌ; ôx=•—·=§J3<èr=C*t=S <MõA½]Š$='Š<Ç†¢½0Ş ½º‘ ½½{=sŒ=½Õ+=šÇµ»Íî‹¼#=-9z=Çü<­ô‹<€É»§J’¼°H=ÓG§¼“<›=uV=mÆ½§¦™<M\ˆ¼=œ=åÀŸ=Í÷”;ºN½‡¯…¼mF0½ZJa=G]=gQT;Ôª½Íd»9_©Ç=šY»=W«š½Ì<]=g?É;§¯i¼ºì<¿ô¶½Íì×¸-‹ò¼ÊøÂ='S…¼í¯ =zÛ½Ê€E½0Ò%=Í"ı<®½½ğ<K½§ê˜¼PPh==xd=×ìZ½Ç ¸½íÕ³=SÒ½Ú<<=İ²½ZT0¼Z>Í<øÙŸ=€w~½ø™”½'M.½=0pK½ÃîÇ½P	½Gù²=­EÂ½úóÚ<8Jª=£7y=Ów¸=À±ÿ¼Å‹=®½-½Q=:˜3='r=à-„=¹’=+a‘=Ú«½S|«<ÚN´½½o=;&½÷F@½š9zºÚÌ^<Í¥½Q»½Š±=SéÎ<XÃÅ=§"ã<•ô€=«÷´½šéŸ9£[Á=ÍöŞº­J%½³ñ’<wj’½Äƒ½=çc½ó#°<Z ¬½ W=ÃH½$¯½@°ˆ½ #à;ÛO=zŸ‚¼mèÄ½3ëà¹g³½=à†_½³*q<@&á<úÂr½¿(š½]pE=GbR½M®<÷½°=Š)=Sñe=c}–=ã
+D½PO =²8Ÿ=Xì”½ºí<o½R´­½:1¦½Fj<×ç½p^=¦8¼Mô¶¼ûu½z4=cTj½øF“=g[»““½5œ=zœ=ó²½£|l½}63½ &½Zò)<H©•½·=W=G“¨½÷S·½Í$,;3‘ëºà°<´¨½—úµ=RÕ¥½~›=°|º= TÕ<Óµ¹<]Á_½§Kı<2L©=÷a¯½-A¯=O<½:÷½<7ÀH=€°Ÿ;°şr½ms½Íü£; Pa½Jè›½ò¢À½Z²É=/µº½ßE½SÎ'=0)„=:ªÄ= #$=Z¶=—#e½ü=3o<J±¹½/{µ=—-	=ÍHL=ĞŞ`=ğ‹=÷U½×¹y=Í³õ;êZJ½Í"i= ôh»§’<ûW‡=3~œ=3 ı»ÍU;³¨Ù;MME=óĞ=› =sI÷¼7b?½Àx¾¼ggn= ¦=÷±.½øQ=3ÄÅ=G7‘=}<Óp™¼…WÈ=÷&
+=cI½zIµ<ƒğd½S…\½º»­=zZ=Â¹½`¼C'¼Ã[K½çb½Hs=‹H…=-¦½j9Å½X—=×}½g?ñ»P-Q½=&"½Ÿ$†=#¯¦=½F½û-™=³‚u½İ¤¨½séÚ<ôÕ»z@S=P“=j½'t¤<=ÍÌy;'a|¼èá<ø$¬½gnô»ğã|½SÁ½Ïª=3›†½Cª(½à2¬=y½Íûm¼rª=q4=ÊhX=à=M$¼Š=zz­=À«"¼“	½Ã/½O0<Õş½ÓN³½ É½W1:=€m›<*2=Í5©»wÑs½ÚsG<Í‰@¼ÚÃô¼Óõ=CÇ½š«<<I½Íš6»3ñ;]Ís½İï7=Àœ˜¼e½eş‡=À©>½_Q¼=`	¬¼+w·=ı“½§@½E$Â=€´s¼Ê+0½-^=K¢½çez=½e½Ù®=}E=:z®=íŠ”¼€Ó†¼f¼§#G=bKÌ½-!`=€
+¨=så4½7æ•=ã˜=ú[D=š¨Ó;Âü=­(=T¼HÊ¡="°ª½W ½9¾½ıÄv=˜´ˆ=§œÄ=kÈ½ ªç<JöP½“9J½]½ê½È½ãô¼3Áa=ÍJÁ:ZL>½ú€¼#Ë]½p2&½À ­=½œ½çô =]^´½ÍÜ:çs	=M˜¹»b}¤=zFÇ<s´š¼’°½²V„½º‚L=-S†=rË=À`É¼Âh½=º¶= ³¬½S=§uS=#ë!=z“«=$°;Ê9¥½ÀHN¼³”ü;Ç ¼==ÇH= ¡1½ Ä¼­Yı¼½!'½—Ë¯½£m½MªR¼¥¦½Z ½Z—¬=X†=Â¤½0ƒ½à•=ºIĞ<E+ˆ½³“G¼ò3˜½šS}»çÁŒ½+x¼³ú¯»?t½5©=…š¼ı;R=À&m<zK4½§}_=çn¼ƒw=½P¼%9¡½Gá¼Z×Ê<˜Æ‹=@;½‚À½cıV½†E½3x$;G½¥¶³=€y½‡Ùº¼K®½j=Ÿ=¨5=ïA¹½ ÅÜ»Ê;=gjL=“Îa½gÛ;À=w<Ûà½µlÀ½í=ë\¤½g~ç<€ğÂ¼3We;óûE<€Ë¼mÚ¼'ªn¼š?Â¼§Ç-<?ó½=cj˜=gŸ¼:¯‰=·C=ƒ›`=Mâ³¼=X`½;k=ƒ§
+=Ù¸½@’7=ğó½M=`¼wŸ<E=³Ò×<ãh½À‚è¼ á¼<= òö<£ôÄ=8³Œ=Ê\½sàè¼`ü¼[¯=Í¼;£¾=ºRD=ƒ4p=:°;==¼A½óö=Íe;½#}g½SÓ¨=Y£½í'V= ÕX=@>K¼š`»}=g+q¼*‡¹½•Zƒ=Ü¾<39+=ÇZd=‰=Í¯Ò<@X½@É=Ó›½§–m<:pû¼  £=zg}=Ó¯4½m(®=u”ƒ=è—Ã½Ai=“Š¼
+½­nÉ=úÈ=ÍÏJ;ã·½Í@ª:§0Y=Š</dÆ½×†Á={<ç8ã¼më®½³eY=@†2=:x=Åˆ=Zè<·@¡½³R½KŞÀ=ÀÁ"=Q·½Ï2Š½»ë§=½¶D½úØ=Àì·¼·9$=G€·¼z[ç<ÓJq½¸ˆ=gÜ:½HæÉ½zÈ<ó(=º†h½sü¼
+§=3f“¼zk= c¼=7˜@=ğz=W •½“­{½ÍÎ¼`şÎ¼³h´» •=Z§Æ½3X€=µ¹=Hı€=Ë`’=*¨=S™‹¼“• ½Å‰¦½hG“=`ã²<3û;: ‹`½ÍÙ^<j°½ÍÌÇ½#½ Ğ<GŞ±½·=§÷İ<GOB½Ícs;—0
+½Ö=]Zœ½J€«=ÍQ\½˜²=So„½š ½c'(½Úƒ¼C¡½;I¹½ã¬½U£¼=uCÁ½Sa‰<Rµ½İ’º=¥…ƒ½j»=Ÿ¬=şµ½ı(<½íë%½m`=à1—¼S<*4A½FÓ¼
+“=çŒ¦½g'¤;Ób.=3F;¼šÏ=CN?½­(T½;4’=šìW;#2D=‰½ø®Ë½#.½bö½=#ş’=šı¬=÷.Ä½(= ny½G0Š=­-²¼Çº=Š¦t½ƒ”…½½#.½gOA;'M[¼Ë‘=Y=`DÚ¼Ãô= }==Ã=g|Æ»À5o½2×ˆ=Š¿=Ğ¢R½¯ñª=d¼ª…<“B—¼ÍG;©N<‡x`½ºY÷< \.=‹j™==¨r= '½G¯Ì½ Mw<m…¼r¶¯=‡¡·=Ê`›=ãS»=GÁª<M+C<c¨š½Í¼e¼z]ê<ÇAÇ½Îj=ı½T=ÛN¦½ 0”<½KR=Eì¼=‡Òç<GÍ'½ıy‡=g8—½'#C½' ´<MYF½ã‰x=Š›2=: ½jİ¼½ò«½š‹ì;gÃ<s™f<W®½*Y&=U£½@¡—<º ¼ú$Z½ø!½ZÖĞ¼'g´¼#’N½»İ¸½Ú¦†½Ó=f}=§\•½½2}½ğ½ ½3¥t;š1	=3%Š=ZŸt¼EF†½+ú†½¼Í<‡Éˆ< L>½gB%ºOÃª=ÃC¸=›W¼½I=Í»M‡‘½çv˜< v»šcb<³§ˆ½š0;uˆ½3îÃ=ZK‘½˜´½À™=Íğ„;M|¬¼YT="8Ÿ=ã±=³É¢»g½‘»R}=gË=Z’¼s°¼gZÖ»ÚŠ<-˜|½‚QÂ=U¼:L+=Õv¹=úä6=ğq½ˆ¬=3¹Ğ<ÀÆ!½óË­=¶½“RR=ïÔ½c4£=Øk²½÷½û™= Î<¯É½»½Å_š½gVj=rn¦½ x»×°k½û‰Ÿ==3x=Š–½ 3½ğ`[½
+oC½p[3½3Ee¼]rŠ= &¬½×I=õqÊ½:ç½½=G½@ãX=º÷='Û½[¤­½]%{½ÅVË½g)b;ó³j=34d¼jt]=ğØ½3—Ô<·“e½“ü¼Ğ”=so­=Sƒö<'ò¼syZ¼ˆÁ­½P¼]Ê½zV=`¦½#=ZÔƒ<«Æ½7g½m„=‡Ÿ¾¼°Tc=§ê²=øRŠ½ÓG=C>}=|G½0°~½ o==à¯Ğ¼§õ>¼çŞ¼İí¼½ƒ«<§.¤<z«€=À/º¼=·½=š`Ÿ½çn=S½=`>4=3à€<ó'ê¼P©»sÃ=*SBhead.4.biasJ@Ç1Ò¼Z‘=t—½-A=—‡`½µk¡½c=¶=€[Ï¼ $€¼€¤»ÓE‘=íoq½½šÒ`;gy<K-¡½*ØBhead.6.weightJÀp7>ø·¾/ÏÇ>úÇ”>úJ=£©Ÿ>ó¾À¾0g[>ÂÜ²¾ğÓ°>o4¾Sx>óõ=×`¾Ç“¾°lµ>ĞîG¾÷>{4 >çº½ ™¡¼“Uç=]­„>ó‘æ=€’Å<¸Ô™¾{×˜¾ÓÅî½zM†¾ú×°½‡Oq>'ZH¾Šûˆ>—‡§¾¸7‚>PM?¾Õ‘Á>³p–¾u¦Ÿ¾ŸÜ­>JE>¥²¾ú¹ ¾º¨Ç>c³H>ˆ2Ì¾m|ô½€5<½*Bhead.6.biasJZT¾5?='öE¾*“Bprior.weightJü%7o½ÈÔr=óñ >ÿò2¾ßá^=;—¥¾òïœ½»ù2=»¾’a<
+q>{„k>‡:ô½kL¾»½y>¹R<…¢¾/@¾ş|>²8>„Z¼¸ÌO>'l£>_;õ<´Ãƒ>;†¨>)Ò˜>Õ±>8?„¾B49¾@¾İˆÉ=¥ü€<Ó}ê»'ÙĞ=¢æ?¾%A²>ƒ¨¾[P>“Û†>ûºë=ë/œ>ªc“>K=.ƒ#>`rä½>¬	H>[Ül>¿Õu¾JA}>\Œ%½|>†±—>q;2¼g 7¾JTu½‚%>'h>wg¾‡8›¾f”¾É¢
+>*B
+prior.biasJıñW>ƒ?˜>_ŞC½*,Bview_2J  €?  @@  @@   @  A    *Bval_61J        *Bval_65J       *Bval_69J       *Bval_78J       *Bval_87J       *Bval_91J       *Bval_95J       *Bscalar_tensor_defaultJ   A*Bval_153Jÿÿÿÿÿÿÿÿ       *Bval_88J       *Bval_117J              *Bval_118J       *Bval_119J              *Bval_122J       *'Bval_137J                     *Bval_149J       *Bval_151J       ZË
+planes
+
+batch
+
+
+"=
+/pkg.torch.export.graph_signature.InputSpec.kind
+USER_INPUT"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone"&
+!pkg.torch.onnx.original_node_namexb
+
+wdl_logits
+
+batch
+"?
+0pkg.torch.export.graph_signature.OutputSpec.kindUSER_OUTPUT",
+!pkg.torch.onnx.original_node_nameadd_248j(
+trunk.0.weight
+
+
+
+
+j.
+trunk.3.conv1.weight
+
+
+
+
+j.
+trunk.3.conv2.weight
+
+
+
+
+j'
+head.0.weight
+
+
+
+
+jÓ
+head.4.weight
+	
+
+€"<
+/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone"4
+!pkg.torch.onnx.original_node_namep_head_4_weightjÊ
+head.4.bias
+
+
+"<
+/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone"2
+!pkg.torch.onnx.original_node_namep_head_4_biasjÒ
+head.6.weight
+
+
+"<
+/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone"4
+!pkg.torch.onnx.original_node_namep_head_6_weightjÊ
+head.6.bias
+
+
+"<
+/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone"2
+!pkg.torch.onnx.original_node_namep_head_6_biasjĞ
+prior.weight
+
+
+"<
+/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone"3
+!pkg.torch.onnx.original_node_namep_prior_weightjÈ
+
+prior.bias
+
+
+"<
+/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone"1
+!pkg.torch.onnx.original_node_namep_prior_biasj˜
+view_2
+
+
+
+
+"v
+$pkg.onnxscript.optimizer.folded_fromN['clone', 'lifted_tensor_0', 'val_53', 'val_54', 'val_55', 'val_56', 'val_57']j\
+val_61
+
+
+"F
+$pkg.onnxscript.optimizer.folded_from['val_58', 'val_59', 'val_60']j\
+val_65
+
+
+"F
+$pkg.onnxscript.optimizer.folded_from['val_62', 'val_63', 'val_64']j\
+val_69
+
+
+"F
+$pkg.onnxscript.optimizer.folded_from['val_66', 'val_67', 'val_68']j\
+val_78
+
+
+"F
+$pkg.onnxscript.optimizer.folded_from['val_75', 'val_76', 'val_77']j\
+val_87
+
+
+"F
+$pkg.onnxscript.optimizer.folded_from['val_84', 'val_85', 'val_86']j\
+val_91
+
+
+"F
+$pkg.onnxscript.optimizer.folded_from['val_88', 'val_89', 'val_90']j\
+val_95
+
+
+"F
+$pkg.onnxscript.optimizer.folded_from['val_92', 'val_93', 'val_94']jT
+scalar_tensor_default
+ "3
+$pkg.onnxscript.optimizer.folded_from['val_121']j
+val_153
+
+
+j
+val_88
+ j
+val_117
+
+
+j
+val_118
+ j
+val_119
+
+
+j
+val_122
+ j
+val_137
+
+
+j
+val_149
+ j
+val_151
+ j&
+getitem
+
+batch
+
+
+j#
+relu
+
+batch
+
+
+j(
+	getitem_3
+
+batch
+
+
+j%
+relu_1
+
+batch
+
+
+j(
+	getitem_6
+
+batch
+
+
+j%
+add_45
+
+batch
+
+
+j%
+relu_2
+
+batch
+
+
+j(
+	getitem_9
+
+batch
+
+
+j%
+relu_3
+
+batch
+
+
+j
+view_1
+
+batch
+€j
+linear
+
+batch
+j
+relu_4
+
+batch
+j
+linear_1
+
+batch
+j&
+slice_1
+
+batch
+
+
+j%
+mul_59
+
+batch
+
+
+j 
+sum_1
+
+batch
+
+j&
+slice_2
+
+batch
+
+
+j%
+mul_66
+
+batch
+
+
+j 
+sum_2
+
+batch
+
+j&
+slice_3
+
+batch
+
+
+j&
+slice_4
+
+batch
+
+
+j&
+slice_5
+
+batch
+
+
+j
+sum_3
+
+batch
+j!
+select
+
+batch
+
+j!
+mul_81
+
+batch
+
+j
+sum_4
+	
+batchj 
+	unsqueeze
+
+batch
+j
+div
+
+batch
+j#
+select_1
+
+batch
+
+j!
+mul_89
+
+batch
+
+j
+sum_5
+	
+batchj"
+unsqueeze_1
+
+batch
+j
+div_1
+
+batch
+j
+sum_6
+	
+batchj"
+unsqueeze_2
+
+batch
+j
+sum_7
+	
+batchj"
+unsqueeze_3
+
+batch
+j#
+select_5
+
+batch
+
+j"
+mul_107
+
+batch
+
+j
+sum_8
+	
+batchj"
+unsqueeze_4
+
+batch
+j&
+slice_6
+
+batch
+
+
+j
+sum_9
+	
+batchj"
+unsqueeze_5
+
+batch
+j&
+slice_7
+
+batch
+
+
+j
+sum_10
+	
+batchj"
+unsqueeze_6
+
+batch
+j#
+select_6
+
+batch
+
+j
+sum_11
+	
+batchj"
+unsqueeze_7
+
+batch
+j#
+select_7
+
+batch
+
+j
+sum_12
+	
+batchj"
+unsqueeze_8
+
+batch
+j
+cat
+
+batch
+j
+linear_2
+
+batch
+‚Í
+0pkg.torch.export.ExportedProgram.graph_signature˜
+# inputs
+p_trunk_0_weight: PARAMETER target='trunk.0.weight'
+p_trunk_1_weight: PARAMETER target='trunk.1.weight'
+p_trunk_1_bias: PARAMETER target='trunk.1.bias'
+p_trunk_3_conv1_weight: PARAMETER target='trunk.3.conv1.weight'
+p_trunk_3_bn1_weight: PARAMETER target='trunk.3.bn1.weight'
+p_trunk_3_bn1_bias: PARAMETER target='trunk.3.bn1.bias'
+p_trunk_3_conv2_weight: PARAMETER target='trunk.3.conv2.weight'
+p_trunk_3_bn2_weight: PARAMETER target='trunk.3.bn2.weight'
+p_trunk_3_bn2_bias: PARAMETER target='trunk.3.bn2.bias'
+p_head_0_weight: PARAMETER target='head.0.weight'
+p_head_1_weight: PARAMETER target='head.1.weight'
+p_head_1_bias: PARAMETER target='head.1.bias'
+p_head_4_weight: PARAMETER target='head.4.weight'
+p_head_4_bias: PARAMETER target='head.4.bias'
+p_head_6_weight: PARAMETER target='head.6.weight'
+p_head_6_bias: PARAMETER target='head.6.bias'
+p_prior_weight: PARAMETER target='prior.weight'
+p_prior_bias: PARAMETER target='prior.bias'
+c_lifted_tensor_0: CONSTANT_TENSOR target='lifted_tensor_0'
+b_trunk_1_running_mean: BUFFER target='trunk.1.running_mean' persistent=True
+b_trunk_1_running_var: BUFFER target='trunk.1.running_var' persistent=True
+b_trunk_1_num_batches_tracked: BUFFER target='trunk.1.num_batches_tracked' persistent=True
+b_trunk_3_bn1_running_mean: BUFFER target='trunk.3.bn1.running_mean' persistent=True
+b_trunk_3_bn1_running_var: BUFFER target='trunk.3.bn1.running_var' persistent=True
+b_trunk_3_bn1_num_batches_tracked: BUFFER target='trunk.3.bn1.num_batches_tracked' persistent=True
+b_trunk_3_bn2_running_mean: BUFFER target='trunk.3.bn2.running_mean' persistent=True
+b_trunk_3_bn2_running_var: BUFFER target='trunk.3.bn2.running_var' persistent=True
+b_trunk_3_bn2_num_batches_tracked: BUFFER target='trunk.3.bn2.num_batches_tracked' persistent=True
+b_head_1_running_mean: BUFFER target='head.1.running_mean' persistent=True
+b_head_1_running_var: BUFFER target='head.1.running_var' persistent=True
+b_head_1_num_batches_tracked: BUFFER target='head.1.num_batches_tracked' persistent=True
+x: USER_INPUT
+
+# outputs
+add_248: USER_OUTPUT
+‚I
+2pkg.torch.export.ExportedProgram.range_constraints{s77: VR[1, 65536]}B
+ 

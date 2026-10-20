@@ -24,6 +24,11 @@ The small model is trained and deployed; the notebook trains medium and large.
 | [`data/download_games.py`](data/download_games.py) | Downloads and curates the training games (standard library only) |
 | [`data/twic_otb2300.pgn`](data/twic_otb2300.pgn) | The 10,000 curated games |
 | [`data/twic_otb2300.manifest.json`](data/twic_otb2300.manifest.json) | Source, filters, counts and checksum for the PGN |
+| [`deep_q_network.ipynb`](deep_q_network.ipynb) | **The Deep Q bots:** Q-learning from their own games, two training loops compared, deployment |
+| [`dqn_training.py`](dqn_training.py) | The Deep Q code: networks, games, replay buffer, targets, resumable time-budgeted training, export |
+| [`dqn_modal.py`](dqn_modal.py) | Trains the Deep Q bots on Modal GPUs within a dollar budget |
+| [`DEEP_Q_PLAN.md`](DEEP_Q_PLAN.md) | The Deep Q design: choices, trade-offs, settings |
+| `runs/` | Deep Q runs, downloaded from Modal or trained locally (git-ignored) |
 | `checkpoints/` | Created by the notebook: training state after every epoch (git-ignored) |
 | `models/` | Created by the notebook: `value_net_<size>.onnx` / `.pt2` / checkpoint / model card, and `manifest.json` (git-ignored) |
 
@@ -151,3 +156,36 @@ listed in `web/public/models/manifest.json` (currently the small model); the
 others show "Still training…". The notebook's `manifest.json` keeps the models
 already deployed and adds the new ones. To deploy, copy it and the new
 `value_net_<size>.onnx` files from `models/` into `web/public/models/`.
+
+## Deep Q bots
+
+The *Deep Q* bots never see a master game's result. They learn by **Q-learning**
+from games they play: a network values the position after each move, and is trained
+towards what happened next plus its own estimate of the position a few moves later.
+They see the standard 19 planes plus 4 heuristic planes (attacks by each side, and
+each side's pieces in danger), and a linear prior on heuristic features with random
+initial weights. Two loops train identical networks: **self** (self-play) and
+**cnn** (against the medium Convolutional bot searching 2 plies). The design is in
+[`DEEP_Q_PLAN.md`](DEEP_Q_PLAN.md).
+
+Train on Modal (it needs a payment method on the account for GPUs), from the
+repository root:
+
+```sh
+modal run --detach ai/dqn_modal.py --budget-usd 1.50     # both loops, small, $0.75 each
+modal volume get pychess-dqn small-afterstate-self ai/runs/
+modal volume get pychess-dqn small-afterstate-cnn ai/runs/
+```
+
+Then open `deep_q_network.ipynb`. It charts both runs and compares them, and its
+last cell deploys the better network **if it beats Greedy**: a score above 50% with
+the 95% Elo interval above zero. Deploying writes `web/public/models/deep_q_small.onnx`
+and adds a `deep-q` entry to `manifest.json`. You can also deploy from Python:
+
+```python
+import dqn_training as dq
+dq.deploy("runs/small-afterstate-self")      # refuses unless the run beat Greedy
+```
+
+Without Modal runs in `runs/`, the notebook trains both loops for a few minutes on
+the local machine: a demonstration, not a strong bot.

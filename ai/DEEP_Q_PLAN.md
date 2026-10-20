@@ -11,14 +11,48 @@ This document covers:
 - how the bots will be evaluated;
 - the order to build things in.
 
-**Decisions so far** (from review of the first draft):
+**Decisions** (from two rounds of review):
 - **Formulation:** train **both** Q-function formulations and compare them. The
   afterstate network ships to the web app.
-- **Prior:** start from a **heuristic prior**: material plus pieces in danger (ours
-  and theirs) and control of the centre. It replaces the material-only prior
-  (section 7).
-- **Compute:** training runs on **Modal** (section 10).
+- **Heuristics:** **4 extra input planes**: attacks by each side, and each side's
+  pieces in danger. That makes a 23-plane encoding for Deep Q; the Convolutional
+  models keep 19.
+- **Prior:** a linear prior on heuristic features (material, pieces in danger,
+  centre occupation and control), with **randomly initialised** weights learned
+  with the rest of the network (section 7a).
+- **Starting positions:** half the games start from positions taken from the
+  first 30 plies of the master games, for variety. Only the positions are used,
+  never the results.
+- **Two training loops** with identical networks and settings:
+  - **self:** the learner plays itself;
+  - **cnn:** the learner plays the medium Convolutional bot searching 2 plies.
+- **Compute:** training runs on **Modal**, about **$1.50** for the small model
+  (section 10).
 - **Scope:** **small first**. Medium and large come only once small works.
+- **Shipping:** the small model goes into the web app as soon as it **beats
+  Greedy** depth 1.
+
+## Status: implemented
+
+| Piece | Where |
+|---|---|
+| 23-plane encoding (CPU, CUDA, WASM, Python), tested against python-chess | `core/encode.hpp`, `bindings/python/tests/test_heuristic_planes.py` |
+| Both networks, rolling games, n-step transitions, repetition hashing, replay buffer, Double-DQN targets, time-budgeted resumable training, evaluation, export, deployment gate | `ai/dqn_training.py`, tests in `ai/test_dqn_training.py` |
+| Modal launcher: dollar budget to minutes, parallel runs, volume, resume, retries | `ai/dqn_modal.py` |
+| Notebook: method, heuristic planes, local or Modal runs, charts, comparison, deployment | `ai/deep_q_network.ipynb` |
+| Web app: Deep Q sizes from the manifest, 23-plane models, "Still training…" | `web/src/lib/{bots,models,evaluators,bot}.ts`, `web/src/app/play/bot/page.tsx` |
+
+`DQNConfig` in `ai/dqn_training.py` holds the settings as built. The rest of this
+document is the design discussion. Some options it describes were left out of the
+first version:
+- prioritised replay;
+- reward shaping;
+- the endgame curriculum;
+- the opponent league;
+- TD-Leaf (search-bootstrapped) targets;
+- mirror augmentation.
+
+Each can be added later as a setting.
 
 ---
 
@@ -227,8 +261,8 @@ All features are counted from the side to move's point of view, "us" against
   CUDA kernels and the browser's WASM. The features are therefore computed
   identically in training, self-play, the move server and the browser.
 
-**How they reach the network.** Two options:
-1. **Extra input planes (recommended).** Add 4 planes to the encoding:
+**How they reach the network** (decided: option 1). Two options:
+1. **Extra input planes.** Add 4 planes to the encoding:
    - squares we attack;
    - squares they attack;
    - our pieces in danger;
@@ -245,16 +279,15 @@ All features are counted from the side to move's point of view, "us" against
      would need a second encoder call.
    - **Verdict.** It is simpler in training but awkward to deploy.
 
-**Weights.** The prior's weights must not be fitted to master-game results, or
-"self-taught" would no longer be true. Instead:
-- **Start from hand-set values.** Use classical engine values on a logit scale:
-  piece values 1/3/3/5/9, a piece in danger costing about half its value, and a
-  small bonus per centre square.
-- **Fine-tune them.** Unlike the CNN's frozen material layer, these weights are
-  **trainable at a lower learning rate** (0.1×), so self-play can correct a
-  hand-set value that is wrong.
-- **Setting.** `prior = "material" | "heuristic" | "none"`, so the effect of the
-  prior can be measured as an ablation.
+**Weights** (decided: random). The prior's weights must not be fitted to
+master-game results, or "self-taught" would no longer be true.
+- **What was built.** The prior's weights start **random** (PyTorch's default
+  initialisation) and train at the full learning rate. The network learns from its
+  own games how much material, danger and the centre are worth.
+- **Settings.** The prior reads 21 features (`dq.FEATURE_NAMES`). `prior=False`
+  turns it off, so its effect can be measured as an ablation.
+- **The alternative considered.** Hand-set classical values, fine-tuned at a lower
+  learning rate.
 
 **Shaping.** The same features give the potential Φ for the optional reward
 shaping (section 3). Then one definition of "a good position" is used everywhere.
@@ -276,6 +309,17 @@ shaping (section 3). Then one definition of "a good position" is used everywhere
 
 These follow the pattern of `Config`/`PROFILES` in `value_training.py`. There are
 `gpu`, `cpu` and `smoke` profiles.
+
+> This table is the design proposal. The settings as built, with their defaults,
+> are `DQNConfig` in `ai/dqn_training.py`. Differences from the table:
+> - n = 3;
+> - 2,048 parallel games;
+> - a 1 M buffer;
+> - batch 1,024;
+> - temperature 0.05 → 0.005 on the expected-score scale;
+> - `pgn_start_frac` 0.5;
+> - a time budget (`max_minutes`) and time-based evaluations;
+> - `opponent = "self" | "cnn"`.
 
 | Group | Setting | Default (gpu) | Notes |
 |---|---|---|---|
@@ -346,13 +390,15 @@ to measure.
 **How training runs on Modal.** A new entry point, `ai/dqn_modal.py`, runs it the
 way `serve/modal_app.py` runs the move server:
 
-- **Command.** `modal run --detach ai/dqn_modal.py --size small --formulation afterstate`
-  trains on a Modal GPU. `--detach` keeps the run going after your terminal closes.
+- **Command.** `modal run --detach ai/dqn_modal.py --budget-usd 1.50` trains both
+  loops in parallel on two Modal GPUs, each with half the budget. `--detach` keeps
+  the runs going after your terminal closes.
 - **Image.** Torch with CUDA, plus the engine built *with* its CUDA kernels, so
   self-play runs on the GPU.
-- **Storage.** A **Modal Volume** (`pychess-dqn`) holds the checkpoints, the replay
-  buffer snapshot and the metrics. A run that hits the function timeout (up to 24 h)
-  or is pre-empted resumes from the volume with the same command.
+- **Storage.** A **Modal Volume** (`pychess-dqn`) holds the checkpoints and the
+  metrics. A run that hits the function timeout (up to 24 h) or is pre-empted
+  resumes from the volume with the same command. The replay buffer is not saved;
+  it refills from new games.
 - **Results.**
   - `modal volume get pychess-dqn …` downloads checkpoints and metrics.
   - The notebook reads the metrics for its charts and evaluates checkpoints
@@ -361,8 +407,12 @@ way `serve/modal_app.py` runs the move server:
   - **Small:** an L4 or A10G is plenty.
   - **Medium/large:** an A100 cuts wall-clock time by about 3×.
   - Set it with `PYCHESS_TRAIN_GPU`, like `PYCHESS_GPU` for the move server.
-- **Cost guard.** `--max-hours` stops a run cleanly, with a checkpoint, at a
-  budget.
+- **Cost guard.** `--budget-usd` is converted to minutes of training. It uses
+  Modal's per-second prices (`PRICES` in `ai/dqn_modal.py`: an L4 with 4 cores and
+  16 GiB is about $1.12/h), minus 5 minutes per run for start-up and the final
+  evaluation. A run stops cleanly with a checkpoint when its time is up.
+  - $1.50 for both loops is about 35 minutes of training each.
+  - `--max-minutes` sets the time directly, for example 3 for a test run.
 - **Billing.** Modal needs a payment method on the account before it runs **any**
   GPU function. That is the same message the L4 move server showed, and there is no
   CPU workaround for training at a useful speed. A CPU profile on Modal or locally
@@ -375,7 +425,10 @@ These are order-of-magnitude figures; phase 0 measures them properly.
 - **Expected throughput.** A medium net on a T4 in float16 evaluates on the order of
   10⁵ positions per second. That is roughly 3,000 self-play moves per second, about
   10⁷ per hour.
-- **Budget.** Learning from scratch needs **tens of millions of positions played**
+- **Budget.** With $1.50 split over two loops, beating Greedy is not guaranteed.
+  Measure it first: the notebook charts the score against Greedy over time, and the
+  next run can be longer if the curve is still rising. In general, learning from
+  scratch needs **tens of millions of positions played**
   before beating Greedy convincingly, and more to approach the CNN. That means hours
   on a free Colab T4, or less than an hour on an A100. A CPU is fine for the smoke
   test only.

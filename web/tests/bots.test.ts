@@ -13,7 +13,7 @@ import { chooseBotMove } from "../src/lib/bot";
 import { botQuery, parseBotSpec, type BotSpec } from "../src/lib/bots";
 import type { ChessGame, EngineModule } from "../src/lib/engine";
 import { networkLeafEvaluator, OnnxEvaluator } from "../src/lib/evaluators";
-import { cnnModel, ENCODING } from "../src/lib/models";
+import { cnnModel, ENCODING, HEURISTIC_ENCODING, modelPlanes, networkModel } from "../src/lib/models";
 import { MATE, materialEvaluator, searchMove, type LeafEvaluator } from "../src/lib/search";
 
 const require = createRequire(import.meta.url);
@@ -201,6 +201,46 @@ describe("Convolutional (value network in onnxruntime-web)", () => {
     const result = await searchMove(engine, game, { depth: 1, evaluator: networkLeafEvaluator(evaluator) });
     expect(result!.move).toBe("h5f7");
   });
+
+  describe("Deep Q (23-plane heuristic encoding)", () => {
+    const deepQ = JSON.parse(readFileSync(resolve(fixtures, "tiny_deep_q_net.expected.json"), "utf8")) as typeof expected;
+    let qEvaluator: OnnxEvaluator;
+
+    beforeAll(async () => {
+      qEvaluator = await OnnxEvaluator.load(engine, readFileSync(resolve(fixtures, "tiny_deep_q_net.onnx")), {
+        wasmPaths: resolve(__dirname, "../node_modules/onnxruntime-web/dist") + "/",
+        planes: engine.HEURISTIC_PLANES,
+      });
+    });
+
+    it("encodes the heuristic planes exactly like the Python package", () => {
+      expect(engine.HEURISTIC_PLANES).toBe(23);
+      const boards = boardsOf(deepQ.fens);
+      const planes = engine.encodeBoardsPlanes(boards, 23);
+      const per = 23 * 64;
+      deepQ.fens.forEach((_, k) => {
+        const row = planes.subarray(k * per, (k + 1) * per);
+        const nonzero = Array.from(row.entries()).filter(([, v]) => v !== 0);
+        expect(nonzero.map(([i]) => i)).toEqual(deepQ.planes_nonzero[k].map(([i]) => i));
+        nonzero.forEach(([, v], j) => expect(v).toBeCloseTo(deepQ.planes_nonzero[k][j][1], 6));
+        // the first 19 planes are the standard encoding
+        expect(Array.from(row.subarray(0, 19 * 64))).toEqual(
+          Array.from(engine.encodeBoards(boards).subarray(k * 19 * 64, (k + 1) * 19 * 64)),
+        );
+      });
+    });
+
+    it("gives the same probabilities as PyTorch", async () => {
+      const probs = await qEvaluator.evaluate(boardsOf(deepQ.fens));
+      deepQ.probs.flat().forEach((p, i) => expect(probs[i]).toBeCloseTo(p, 4));
+    });
+
+    it("searches with the network", async () => {
+      game.setFen("rn1q1rk1/1p2bppp/p2pbn2/4p3/4P3/1NN1BP2/PPPQ2PP/2KR1B1R b - - 4 10");
+      const result = await searchMove(engine, game, { depth: 2, evaluator: networkLeafEvaluator(qEvaluator) });
+      expect(game.legalUci()).toContain(result!.move);
+    });
+  });
 });
 
 describe("bot settings", () => {
@@ -219,8 +259,19 @@ describe("bot settings", () => {
     expect(parseBotSpec(params(""))).toEqual({ family: "greedy", depth: 1 });
   });
 
+  it("parses Deep Q game URLs", () => {
+    expect(parseBotSpec(params("bot=dqn&size=small&depth=3"))).toEqual({ family: "dqn", size: "small", depth: 3 });
+    expect(parseBotSpec(params("bot=dqn"))).toEqual({ family: "dqn", size: "small", depth: 2 });
+    expect(parseBotSpec(params("bot=dqn&size=large&server=1"))).toEqual({ family: "dqn", size: "large", depth: 1 });
+  });
+
   it("round-trips through the URL", () => {
-    const specs: BotSpec[] = [{ family: "jester" }, ...GREEDY, { family: "cnn", size: "medium", depth: 3 }];
+    const specs: BotSpec[] = [
+      { family: "jester" },
+      ...GREEDY,
+      { family: "cnn", size: "medium", depth: 3 },
+      { family: "dqn", size: "small", depth: 1 },
+    ];
     for (const spec of specs) expect(parseBotSpec(params(botQuery(spec)))).toEqual(spec);
   });
 
@@ -237,11 +288,26 @@ describe("bot settings", () => {
     expect(cnnModel(manifest, "large")).toBeUndefined();
   });
 
+  it("finds Deep Q models by family, with their encoding", () => {
+    const manifest = {
+      version: 1,
+      models: [
+        { id: "cnn-small", family: "convolutional", size: "small" as const, file: "c.onnx", encoding: ENCODING },
+        { id: "dqn-small", family: "deep-q", size: "small" as const, file: "q.onnx", encoding: HEURISTIC_ENCODING },
+      ],
+    };
+    const q = networkModel(manifest, "dqn", "small")!;
+    expect(q.file).toBe("q.onnx");
+    expect(modelPlanes(q)).toBe(23);
+    expect(modelPlanes(cnnModel(manifest, "small")!)).toBe(19);
+    expect(networkModel(manifest, "dqn", "medium")).toBeUndefined();
+  });
+
   it("deploys only models that exist and use the app's encoding", () => {
     const shipped = JSON.parse(readFileSync(resolve(__dirname, "../public/models/manifest.json"), "utf8"));
     expect(shipped.encoding).toBe(ENCODING);
     for (const model of shipped.models) {
-      expect(model.encoding).toBe(ENCODING);
+      expect(model.encoding).toBe(model.family === "deep-q" ? HEURISTIC_ENCODING : ENCODING);
       expect(existsSync(resolve(__dirname, "../public/models", model.file))).toBe(true);
     }
   });

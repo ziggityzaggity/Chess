@@ -13,13 +13,14 @@ import {
   botName,
   botQuery,
   defaultDepth,
+  isNetworkFamily,
   isPlayable,
   type BotDepth,
   type BotFamily,
   type BotSpec,
   type ModelSize,
 } from "@/lib/bots";
-import { cnnModel, loadModelManifest, type ModelManifest } from "@/lib/models";
+import { cnnModel, loadModelManifest, networkModel, type ModelManifest } from "@/lib/models";
 import { useAuth } from "@/lib/auth";
 import { SERVER_MOVES_PER_HOUR, serverConfigured } from "@/lib/serverBot";
 
@@ -56,24 +57,22 @@ export default function BotSetupPage() {
     };
   }, []);
 
-  const deployed = (s: ModelSize) => !!manifest && !!cnnModel(manifest, s);
-  const servable = (s: ModelSize) => serverConfigured() && SERVER_SIZES.includes(s);
-  const sizeAvailable = (s: ModelSize) => deployed(s) || servable(s);
-  const anyModel = MODEL_SIZES.some(sizeAvailable);
-  const chooseSize = (s: ModelSize) => {
+  // Sizes of a network family: in the browser when its model is deployed; the
+  // large Convolutional model also on the move server.
+  const deployed = (s: ModelSize, f: BotFamily = family) =>
+    !!manifest && isNetworkFamily(f) && !!networkModel(manifest, f, s);
+  const servable = (s: ModelSize, f: BotFamily = family) =>
+    f === "cnn" && serverConfigured() && SERVER_SIZES.includes(s);
+  const sizeAvailable = (s: ModelSize, f: BotFamily = family) => deployed(s, f) || servable(s, f);
+  const anyModel = (f: BotFamily) => MODEL_SIZES.some((s) => sizeAvailable(s, f));
+  const chooseSize = (s: ModelSize, f: BotFamily = family) => {
     setSize(s);
-    setServer(!deployed(s) && servable(s)); // the browser when it can, else the server
-    setDepth(defaultDepth("cnn", s));
+    setServer(!deployed(s, f) && servable(s, f)); // the browser when it can, else the server
+    setDepth(defaultDepth(f, s));
   };
-  const available = (f: BotFamily) => isPlayable(f) && (f !== "cnn" || anyModel);
+  const available = (f: BotFamily) => isPlayable(f) && (!isNetworkFamily(f) || anyModel(f));
   const unavailableNote = (f: BotFamily) =>
-    f === "dqn"
-      ? "Coming soon"
-      : f === "cnn" && !anyModel
-        ? manifest
-          ? "Still training…"
-          : "Checking for models…"
-        : null;
+    isNetworkFamily(f) && !anyModel(f) ? (manifest ? "Still training…" : "Checking for models…") : null;
 
   const spec: BotSpec | null =
     family === "jester"
@@ -84,7 +83,7 @@ export default function BotSetupPage() {
           ? servable(size) && user
             ? { family, size, depth, server: true }
             : null
-          : family === "cnn" && deployed(size)
+          : isNetworkFamily(family) && deployed(size)
             ? { family, size, depth }
             : null;
   const hasDepth = BOT_FAMILIES[family].hasDepth;
@@ -171,8 +170,10 @@ export default function BotSetupPage() {
                     disabled={!enabled}
                     onChange={() => {
                       setFamily(bot.id);
-                      if (bot.id === "cnn") chooseSize(sizeAvailable(size) ? size : (MODEL_SIZES.find(sizeAvailable) ?? size));
-                      else setDepth(defaultDepth(bot.id, size));
+                      if (isNetworkFamily(bot.id)) {
+                        const fits = (s: ModelSize) => sizeAvailable(s, bot.id);
+                        chooseSize(fits(size) ? size : (MODEL_SIZES.find(fits) ?? size), bot.id);
+                      } else setDepth(defaultDepth(bot.id, size));
                     }}
                     aria-label={bot.name}
                     aria-describedby={`bot-${bot.id}-description`}
@@ -219,7 +220,7 @@ export default function BotSetupPage() {
             })}
           </div>
         </fieldset>
-        {family === "cnn" && (
+        {isNetworkFamily(family) && (
           <fieldset className="mt-8">
             <legend className="text-sm font-bold text-ink">Model size</legend>
             <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3">

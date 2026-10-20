@@ -80,8 +80,11 @@ export interface EngineModule {
   expandBoards(boards: Uint8Array): Expansion;
   /** Value-network input: NUM_PLANES x 8 x 8 floats per board (core/encode.hpp). */
   encodeBoards(boards: Uint8Array): Float32Array;
+  /** The same with a chosen plane count: NUM_PLANES (19) or HEURISTIC_PLANES (23). */
+  encodeBoardsPlanes(boards: Uint8Array, planes: number): Float32Array;
   BOARD_BYTES: number;
   NUM_PLANES: number;
+  HEURISTIC_PLANES: number;
 }
 
 type EngineFactory = (opts?: {

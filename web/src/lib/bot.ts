@@ -9,7 +9,7 @@
 import type { ChessGame, EngineModule } from "./engine";
 import { botName, type BotSpec } from "./bots";
 import { networkLeafEvaluator, onnxEvaluator } from "./evaluators";
-import { cnnModel, loadModelManifest, modelUrl } from "./models";
+import { loadModelManifest, modelPlanes, modelUrl, networkModel } from "./models";
 import { materialEvaluator, searchMove, type LeafEvaluator } from "./search";
 import { requestServerMove, ServerBotError, SIGN_IN_MESSAGE, type ServerMove } from "./serverBot";
 
@@ -60,10 +60,10 @@ export async function chooseBotMove(
 
   let evaluator: LeafEvaluator = materialEvaluator;
   let timeBudgetMs = options.timeBudgetMs;
-  if (bot.family === "cnn") {
-    const model = cnnModel(await loadModelManifest(), bot.size);
+  if (bot.family === "cnn" || bot.family === "dqn") {
+    const model = networkModel(await loadModelManifest(), bot.family, bot.size);
     if (!model) throw new Error(`${botName(bot)} is still training. Choose another size for now.`);
-    evaluator = networkLeafEvaluator(await onnxEvaluator(engine, modelUrl(model)));
+    evaluator = networkLeafEvaluator(await onnxEvaluator(engine, modelUrl(model), modelPlanes(model)));
     timeBudgetMs ??= NETWORK_TIME_BUDGET_MS;
   }
   const result = await searchMove(engine, game, {
