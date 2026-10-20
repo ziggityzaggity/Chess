@@ -114,7 +114,8 @@ npm start
 
 ## Bots
 
-All bots run in the browser. [`src/lib/bot.ts`](src/lib/bot.ts) is the entry
+The bots run in the browser, except the large Convolutional bot when a signed-in
+player picks "On our servers". [`src/lib/bot.ts`](src/lib/bot.ts) is the entry
 point (`chooseBotMove`); the hook calls it asynchronously, so a slow search never
 blocks the board.
 
@@ -127,9 +128,13 @@ blocks the board.
 - [`evaluators.ts`](src/lib/evaluators.ts) — `OnnxEvaluator` runs a network
   with `onnxruntime-web` (WebAssembly, in a worker) on inputs encoded by the
   engine (`encodeBoards`, the same C++ encoder the network was trained with).
-  `PositionEvaluator` is the interface a remotely hosted model (e.g. on Modal)
-  would implement.
+  `PositionEvaluator` is the interface a remotely hosted model would implement.
 - [`models.ts`](src/lib/models.ts) — reads `public/models/manifest.json`.
+- [`serverBot.ts`](src/lib/serverBot.ts) — the large model on the move server
+  ([`../serve/`](../serve/README.md), on Modal): any depth, 200 moves per hour per
+  signed-in player. It sends the position, the game's moves and the player's
+  Supabase access token, and turns 401/429 answers into messages for the player.
+  The option appears only when `NEXT_PUBLIC_MODEL_SERVER_URL` is set.
 
 **Deploying a model.** The notebook `ai/chess_value_network.ipynb` exports
 `value_net_<size>.onnx` files and a `manifest.json`. Copy them into

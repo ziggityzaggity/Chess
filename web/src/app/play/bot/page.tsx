@@ -9,6 +9,7 @@ import {
   DEPTHS,
   MODEL_SIZES,
   MODEL_SIZE_DETAIL,
+  SERVER_SIZES,
   botName,
   botQuery,
   defaultDepth,
@@ -19,6 +20,8 @@ import {
   type ModelSize,
 } from "@/lib/bots";
 import { cnnModel, loadModelManifest, type ModelManifest } from "@/lib/models";
+import { useAuth } from "@/lib/auth";
+import { SERVER_MOVES_PER_HOUR, serverConfigured } from "@/lib/serverBot";
 
 const COLOURS = [
   { id: "white", name: "White", detail: "You move first", symbol: "○" },
@@ -34,6 +37,8 @@ export default function BotSetupPage() {
   const [depth, setDepth] = useState<BotDepth>(1);
   const [size, setSize] = useState<ModelSize>("small");
   const [manifest, setManifest] = useState<ModelManifest | null>(null);
+  const [server, setServer] = useState(false); // run the model on the move server
+  const { user } = useAuth();
 
   useEffect(() => {
     let cancelled = false;
@@ -41,7 +46,10 @@ export default function BotSetupPage() {
       if (cancelled) return;
       setManifest(m);
       const first = MODEL_SIZES.find((s) => cnnModel(m, s));
-      if (first) setSize(first);
+      if (first) {
+        setSize(first);
+        setServer(false);
+      }
     });
     return () => {
       cancelled = true;
@@ -49,7 +57,14 @@ export default function BotSetupPage() {
   }, []);
 
   const deployed = (s: ModelSize) => !!manifest && !!cnnModel(manifest, s);
-  const anyModel = MODEL_SIZES.some(deployed);
+  const servable = (s: ModelSize) => serverConfigured() && SERVER_SIZES.includes(s);
+  const sizeAvailable = (s: ModelSize) => deployed(s) || servable(s);
+  const anyModel = MODEL_SIZES.some(sizeAvailable);
+  const chooseSize = (s: ModelSize) => {
+    setSize(s);
+    setServer(!deployed(s) && servable(s)); // the browser when it can, else the server
+    setDepth(defaultDepth("cnn", s));
+  };
   const available = (f: BotFamily) => isPlayable(f) && (f !== "cnn" || anyModel);
   const unavailableNote = (f: BotFamily) =>
     f === "dqn"
@@ -65,9 +80,13 @@ export default function BotSetupPage() {
       ? { family }
       : family === "greedy"
         ? { family, depth }
-        : family === "cnn" && deployed(size)
-          ? { family, size, depth }
-          : null;
+        : family === "cnn" && server
+          ? servable(size) && user
+            ? { family, size, depth, server: true }
+            : null
+          : family === "cnn" && deployed(size)
+            ? { family, size, depth }
+            : null;
   const hasDepth = BOT_FAMILIES[family].hasDepth;
 
   return (
@@ -152,7 +171,8 @@ export default function BotSetupPage() {
                     disabled={!enabled}
                     onChange={() => {
                       setFamily(bot.id);
-                      setDepth(defaultDepth(bot.id, size));
+                      if (bot.id === "cnn") chooseSize(sizeAvailable(size) ? size : (MODEL_SIZES.find(sizeAvailable) ?? size));
+                      else setDepth(defaultDepth(bot.id, size));
                     }}
                     aria-label={bot.name}
                     aria-describedby={`bot-${bot.id}-description`}
@@ -206,30 +226,78 @@ export default function BotSetupPage() {
               {MODEL_SIZES.map((s) => (
                 <label
                   key={s}
-                  className={`relative min-w-0 ${deployed(s) ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                  className={`relative min-w-0 ${sizeAvailable(s) ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
                 >
                   <input
                     type="radio"
                     name="size"
                     value={s}
                     checked={size === s}
-                    disabled={!deployed(s)}
-                    onChange={() => {
-                      setSize(s);
-                      setDepth(defaultDepth(family, s));
-                    }}
+                    disabled={!sizeAvailable(s)}
+                    onChange={() => chooseSize(s)}
                     aria-label={`${s} model`}
                     className="peer sr-only"
                   />
                   <span className="flex h-full flex-col items-center rounded-2xl border border-line bg-surface px-2 py-4 text-center transition hover:border-gold peer-checked:border-gold peer-checked:ring-1 peer-checked:ring-gold peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-gold peer-disabled:hover:border-line sm:px-4">
                     <span className="text-sm font-bold capitalize text-ink">{s}</span>
                     <span className="mt-1 text-xs leading-relaxed text-muted">
-                      {deployed(s) ? MODEL_SIZE_DETAIL[s] : "Still training…"}
+                      {deployed(s) ? MODEL_SIZE_DETAIL[s] : servable(s) ? "On our servers" : "Still training…"}
                     </span>
                   </span>
                 </label>
               ))}
             </div>
+          </fieldset>
+        )}
+        {family === "cnn" && servable(size) && (
+          <fieldset className="mt-8">
+            <legend className="text-sm font-bold text-ink">Where it runs</legend>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
+              {[
+                {
+                  id: "browser",
+                  name: "In your browser",
+                  detail: deployed(size) ? "Unlimited · depth 1 is quickest" : "Not available in the browser yet",
+                  enabled: deployed(size),
+                },
+                {
+                  id: "server",
+                  name: "On our servers",
+                  detail: user
+                    ? `Any depth, quickly · ${SERVER_MOVES_PER_HOUR} moves an hour`
+                    : `Sign in to use · ${SERVER_MOVES_PER_HOUR} moves an hour`,
+                  enabled: !!user,
+                },
+              ].map((choice) => (
+                <label
+                  key={choice.id}
+                  className={`relative min-w-0 ${choice.enabled ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                >
+                  <input
+                    type="radio"
+                    name="runtime"
+                    value={choice.id}
+                    checked={server === (choice.id === "server")}
+                    disabled={!choice.enabled}
+                    onChange={() => setServer(choice.id === "server")}
+                    aria-label={choice.name}
+                    className="peer sr-only"
+                  />
+                  <span className="flex h-full flex-col items-center rounded-2xl border border-line bg-surface px-2 py-4 text-center transition hover:border-gold peer-checked:border-gold peer-checked:ring-1 peer-checked:ring-gold peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-gold peer-disabled:hover:border-line sm:px-4">
+                    <span className="text-sm font-bold text-ink">{choice.name}</span>
+                    <span className="mt-1 text-xs leading-relaxed text-muted">{choice.detail}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            {!user && (
+              <p className="mt-3 text-sm text-muted">
+                <Link href="/login" className="font-semibold text-gold-600 hover:text-ink">
+                  Sign in
+                </Link>{" "}
+                to play the large model on our servers.
+              </p>
+            )}
           </fieldset>
         )}
         <fieldset className="mt-8" disabled={!hasDepth}>

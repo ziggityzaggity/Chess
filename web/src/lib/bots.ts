@@ -1,5 +1,6 @@
 // The bot opponents: families, their settings, and how a choice travels in the
-// game URL (?bot=cnn&size=small&depth=2).
+// game URL (?bot=cnn&size=small&depth=2, plus &server=1 for the large model on
+// the move server).
 
 export const BOT_FAMILIES = {
   jester: {
@@ -52,7 +53,16 @@ export const MODEL_SIZE_DETAIL: Record<ModelSize, string> = {
 export type BotSpec =
   | { family: "jester" }
   | { family: "greedy"; depth: BotDepth }
-  | { family: "cnn"; size: ModelSize; depth: BotDepth };
+  | {
+      family: "cnn";
+      size: ModelSize;
+      depth: BotDepth;
+      /** Run on the move server (signed-in players, large model only) instead of in the browser. */
+      server?: boolean;
+    };
+
+/** Model sizes the move server can run. */
+export const SERVER_SIZES: readonly ModelSize[] = ["large"];
 
 /** Families a game can be started against (Deep Q is announced, not playable). */
 export function isPlayable(family: BotFamily): boolean {
@@ -96,7 +106,9 @@ export function parseBotSpec(params: { get(name: string): string | null }): BotS
       return { family: "greedy", depth: parseDepth(depth, 2) };
     case "cnn": {
       const size = parseSize(params.get("size"));
-      return { family: "cnn", size, depth: parseDepth(depth, defaultDepth("cnn", size)) };
+      const spec: BotSpec = { family: "cnn", size, depth: parseDepth(depth, defaultDepth("cnn", size)) };
+      if (params.get("server") === "1" && SERVER_SIZES.includes(size)) spec.server = true;
+      return spec;
     }
     default:
       return { family: "greedy", depth: parseDepth(depth, 1) };
@@ -111,7 +123,7 @@ export function botQuery(spec: BotSpec): string {
     case "greedy":
       return `bot=greedy&depth=${spec.depth}`;
     case "cnn":
-      return `bot=cnn&size=${spec.size}&depth=${spec.depth}`;
+      return `bot=cnn&size=${spec.size}&depth=${spec.depth}${spec.server ? "&server=1" : ""}`;
   }
 }
 
@@ -124,5 +136,6 @@ export function botName(spec: BotSpec): string {
 /** Short description of how it plays, e.g. "Material search · depth 2". */
 export function botTagline(spec: BotSpec): string {
   const architecture = BOT_FAMILIES[spec.family].architecture;
-  return spec.family === "jester" ? architecture : `${architecture} · depth ${spec.depth}`;
+  if (spec.family === "jester") return architecture;
+  return `${architecture} · depth ${spec.depth}${spec.family === "cnn" && spec.server ? " · on our servers" : ""}`;
 }
