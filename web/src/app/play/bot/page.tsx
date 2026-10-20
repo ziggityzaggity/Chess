@@ -11,6 +11,7 @@ import {
   MODEL_SIZE_DETAIL,
   botName,
   botQuery,
+  defaultDepth,
   isPlayable,
   type BotDepth,
   type BotFamily,
@@ -149,7 +150,10 @@ export default function BotSetupPage() {
                     value={bot.id}
                     checked={checked}
                     disabled={!enabled}
-                    onChange={() => setFamily(bot.id)}
+                    onChange={() => {
+                      setFamily(bot.id);
+                      setDepth(defaultDepth(bot.id, size));
+                    }}
                     aria-label={bot.name}
                     aria-describedby={`bot-${bot.id}-description`}
                     className="peer sr-only"
@@ -210,7 +214,10 @@ export default function BotSetupPage() {
                     value={s}
                     checked={size === s}
                     disabled={!deployed(s)}
-                    onChange={() => setSize(s)}
+                    onChange={() => {
+                      setSize(s);
+                      setDepth(defaultDepth(family, s));
+                    }}
                     aria-label={`${s} model`}
                     className="peer sr-only"
                   />

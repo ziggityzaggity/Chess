@@ -61,6 +61,16 @@ export function isPlayable(family: BotFamily): boolean {
 
 export const DEFAULT_BOT: BotSpec = { family: "greedy", depth: 1 };
 
+/**
+ * The lookahead a bot starts with. Convolutional bots search two moves, except
+ * the large one: each of its searches costs about 2.5 times as much, so it
+ * starts at one. Greedy starts at one.
+ */
+export function defaultDepth(family: BotFamily, size?: ModelSize): BotDepth {
+  if (family !== "cnn") return 1;
+  return size === "large" ? 1 : 2;
+}
+
 function parseDepth(value: string | null, fallback: BotDepth): BotDepth {
   const n = Number(value);
   return n === 1 || n === 2 || n === 3 ? n : fallback;
@@ -84,8 +94,10 @@ export function parseBotSpec(params: { get(name: string): string | null }): BotS
       return { family: "jester" };
     case "minimax":
       return { family: "greedy", depth: parseDepth(depth, 2) };
-    case "cnn":
-      return { family: "cnn", size: parseSize(params.get("size")), depth: parseDepth(depth, 1) };
+    case "cnn": {
+      const size = parseSize(params.get("size"));
+      return { family: "cnn", size, depth: parseDepth(depth, defaultDepth("cnn", size)) };
+    }
     default:
       return { family: "greedy", depth: parseDepth(depth, 1) };
   }
