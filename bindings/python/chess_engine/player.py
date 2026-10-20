@@ -69,6 +69,24 @@ class ScoredMove:
 
 
 MAX_DEPTH = 3
+EVAL_CHUNK = 8192          # positions encoded and evaluated per call (bounds memory)
+
+
+def evaluate_boards(evaluate: Evaluator, boards: np.ndarray, chunk: int = EVAL_CHUNK) -> np.ndarray:
+    """Win/draw/loss probabilities of compact boards, encoded and evaluated `chunk` at a time.
+
+    Each distinct position is evaluated once: move-order transpositions make
+    about a quarter of a depth-3 horizon duplicates. A depth-3 search can reach
+    100k+ positions; encoding them all at once would take ~5 KB each.
+    """
+    if len(boards) == 0:
+        return np.zeros((0, 3))
+    keys = np.ascontiguousarray(boards).view(np.dtype((np.void, boards.shape[1]))).ravel()
+    _, first, inverse = np.unique(keys, return_index=True, return_inverse=True)
+    unique = boards[first]
+    out = [np.asarray(evaluate(_core.encode_boards(unique[i:i + chunk])), dtype=np.float64)
+           for i in range(0, len(unique), chunk)]
+    return np.concatenate(out)[inverse.ravel()]
 
 
 def _check_depth(depth: int) -> None:
@@ -93,7 +111,7 @@ def position_values(boards: np.ndarray, evaluate: Evaluator, plies: int) -> np.n
     if len(live) == 0:
         return values
     if plies == 0:
-        p = np.asarray(evaluate(_core.encode_boards(boards[live])), dtype=np.float64)
+        p = evaluate_boards(evaluate, boards[live])
         values[live] = p[:, WIN] + 0.5 * p[:, DRAW]
     else:
         kids, _, _, offsets = _core.expand_boards(boards[live])     # every live board has a move
@@ -134,7 +152,7 @@ def score_moves(game: Game, evaluate: Evaluator, depth: int = 1) -> list[ScoredM
             else:
                 to_eval.append(i)
     if to_eval and depth == 1:
-        probs = np.asarray(evaluate(_core.encode_boards(boards[to_eval])), dtype=np.float64)
+        probs = evaluate_boards(evaluate, boards[to_eval])
         for k, i in enumerate(to_eval):
             w, d, l = probs[k]                     # the opponent's view ...
             wdl[i] = (float(l), float(d), float(w))  # ... flipped to the mover's
