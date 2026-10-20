@@ -3,11 +3,12 @@
 Deploy from the repository root (see serve/README.md for the one-time setup):
 
     modal deploy serve/modal_app.py
-    modal run serve/modal_app.py        # benchmark: move times on the GPU, nothing deployed
+    modal run serve/modal_app.py        # benchmark: move times, nothing deployed
 
 Settings, read at deploy time:
     PYCHESS_MODEL            the ONNX file to serve (default web/public/models/value_net_large.onnx)
-    PYCHESS_GPU              Modal GPU type (default L4)
+    PYCHESS_GPU              Modal GPU type (default L4), or "cpu" for no GPU: no card needed
+                             on Modal, searches capped at depth 2
     PYCHESS_MIN_CONTAINERS   containers kept warm (default 0; 1 avoids cold starts, billed while idle)
     PYCHESS_ALLOWED_ORIGINS  comma-separated web origins allowed to call it
 """
@@ -22,6 +23,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))   # move_service, for a
 REPO = Path(__file__).resolve().parents[1]
 MODEL = Path(os.environ.get("PYCHESS_MODEL", REPO / "web" / "public" / "models" / "value_net_large.onnx"))
 GPU = os.environ.get("PYCHESS_GPU", "L4")
+ON_CPU = GPU.lower() in ("cpu", "none", "")
+MAX_DEPTH = 2 if ON_CPU else 3   # depth 3 takes 20-45 s on a CPU
 MIN_CONTAINERS = int(os.environ.get("PYCHESS_MIN_CONTAINERS", "0"))
 ALLOWED_ORIGINS = os.environ.get("PYCHESS_ALLOWED_ORIGINS",
                                  "https://www.pychess.app,https://pychess.app,http://localhost:3000")
@@ -34,7 +37,8 @@ image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("build-essential")
     .pip_install(
-        "onnxruntime-gpu[cuda,cudnn]==1.26.0",   # CUDA 12 + cuDNN 9 wheels, loaded by preload_dlls()
+        "onnxruntime==1.26.0" if ON_CPU
+        else "onnxruntime-gpu[cuda,cudnn]==1.26.0",   # CUDA 12 + cuDNN 9 wheels, loaded by preload_dlls()
         "onnx==1.23.0",
         "onnxconverter-common==1.16.0",
         "numpy==2.3.3",
@@ -43,18 +47,25 @@ image = (
     )
     .add_local_dir(REPO, "/opt/pychess", copy=True, ignore=~modal.FilePatternMatcher(*ENGINE_SOURCES))
     .run_commands("pip install /opt/pychess")      # the C++ engine (CPU build; the GPU runs the network)
-    .env({"PYCHESS_ALLOWED_ORIGINS": ALLOWED_ORIGINS})
+    .env({"PYCHESS_ALLOWED_ORIGINS": ALLOWED_ORIGINS, "PYCHESS_MAX_DEPTH": str(MAX_DEPTH)})
     .add_local_python_source("move_service")
     .add_local_file(MODEL, REMOTE_MODEL)
 )
 
 app = modal.App("pychess-move-server", image=image)
+HARDWARE = dict(cpu=8.0, memory=8192) if ON_CPU else dict(gpu=GPU, cpu=4.0, memory=8192)
+
+
+def load_runtime():
+    """Make the GPU's CUDA libraries loadable (nothing to do on a CPU)."""
+    import onnxruntime
+
+    if not ON_CPU:
+        onnxruntime.preload_dlls()   # the CUDA and cuDNN libraries from the pip wheels
 
 
 @app.cls(
-    gpu=GPU,
-    cpu=4,                       # tree expansion and encoding run on the CPU, multithreaded
-    memory=8192,
+    **HARDWARE,                  # tree expansion and encoding run on the CPU, multithreaded
     secrets=[modal.Secret.from_name("pychess-supabase")],   # SUPABASE_URL, SUPABASE_ANON_KEY
     min_containers=MIN_CONTAINERS,
     scaledown_window=600,        # stay warm for 10 minutes after the last move
@@ -66,37 +77,34 @@ class MoveServer:
     def load(self):
         import logging
 
-        import onnxruntime
-
-        onnxruntime.preload_dlls()   # the CUDA and cuDNN libraries from the pip wheels
+        load_runtime()
         logging.basicConfig(level=logging.INFO)
         from move_service import OnnxModel, SupabaseQuota, create_app
 
         model = OnnxModel(REMOTE_MODEL)
         model.warm_up()
         quota = SupabaseQuota(os.environ["SUPABASE_URL"], os.environ["SUPABASE_ANON_KEY"])
-        self.web_app = create_app(model, quota, os.environ["PYCHESS_ALLOWED_ORIGINS"].split(","))
+        self.web_app = create_app(model, quota, os.environ["PYCHESS_ALLOWED_ORIGINS"].split(","),
+                                  max_depth=int(os.environ["PYCHESS_MAX_DEPTH"]))
 
     @modal.asgi_app()
     def web(self):
         return self.web_app
 
 
-@app.function(gpu=GPU, cpu=4, memory=8192, timeout=900)
+@app.function(**HARDWARE, timeout=900)
 def benchmark() -> dict:
-    """Move times on the GPU for depths 1-3 (`modal run serve/modal_app.py`)."""
+    """Move times for each depth the server allows (`modal run serve/modal_app.py`)."""
     import time
 
-    import onnxruntime
-
-    onnxruntime.preload_dlls()
+    load_runtime()
     from move_service import OnnxModel, benchmark as run
 
     t0 = time.perf_counter()
     model = OnnxModel(REMOTE_MODEL)
     model.warm_up()
     return {"provider": model.session.get_providers()[0], "precision": model.precision,
-            "startup_s": round(time.perf_counter() - t0, 1), "moves": run(model)}
+            "startup_s": round(time.perf_counter() - t0, 1), "moves": run(model, range(1, MAX_DEPTH + 1))}
 
 
 @app.local_entrypoint()

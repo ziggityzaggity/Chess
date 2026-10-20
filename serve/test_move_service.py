@@ -201,3 +201,9 @@ def test_supabase_quota(status, body, outcome):
             asyncio.run(quota.consume("user-token"))
     assert seen == {"url": "https://ref.supabase.co/rest/v1/rpc/consume_model_move",
                     "auth": "Bearer user-token", "key": "anon-key"}
+
+
+def test_depth_is_capped_on_a_cpu_server(model):
+    app = ms.create_app(model, FakeQuota(ALLOWED), ["https://www.pychess.app"], max_depth=2)
+    r = TestClient(app).post("/move", json={"fen": MIDDLEGAME, "depth": 3}, headers={"Authorization": "Bearer t"})
+    assert r.status_code == 200 and r.json()["depth"] == 2

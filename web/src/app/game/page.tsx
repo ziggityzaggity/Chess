@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/lib/settings";
 import { toMoveRows } from "@/lib/pgn";
 import { parseTimeControl } from "@/lib/timeControl";
-import { botName, botTagline, parseBotSpec } from "@/lib/bots";
+import { botName, botTagline, parseBotSpec, type BotDepth } from "@/lib/bots";
 import { useChessGame, type GameSnapshot } from "@/lib/useChessGame";
 
 const DRAW = [
@@ -110,7 +110,7 @@ function GameScreen() {
     name: mode === "bot" ? botName(bot) : "Black",
     tag:
       mode === "bot"
-        ? `${botTagline(bot)}${game.serverMovesLeft != null ? ` · ${game.serverMovesLeft} moves left this hour` : ""} · ${playerColor === 0 ? "Black" : "White"}`
+        ? `${botTagline(bot.family === "cnn" && game.serverDepth != null ? { ...bot, depth: game.serverDepth as BotDepth } : bot)}${game.serverMovesLeft != null ? ` · ${game.serverMovesLeft} moves left this hour` : ""} · ${playerColor === 0 ? "Black" : "White"}`
         : "Pass-and-play",
     initials: undefined as string | undefined,
   };
