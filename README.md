@@ -23,4 +23,14 @@ User authentication is handled by Supabase using the Resend SMTP to send 6-digit
 
 Many many more features to come!
 
+## Development setup
+One script creates the same development environment on every machine: a Python virtual environment in `.venv` with pinned versions (`requirements-dev.txt`), the C++ engine built into it, and the web app's packages.
+
+- macOS / Linux: `scripts/setup-dev.sh`
+- Windows (PowerShell): `scripts\setup-dev.ps1`
+
+You need Python 3.11 or 3.12, a C++17 compiler (Xcode command-line tools, `build-essential`, or Visual Studio Build Tools with "Desktop development with C++"), and Node.js 20.9+ for the web app. On Windows, PyTorch also needs the latest Microsoft Visual C++ Redistributable (x64).
+
+The engine is installed in editable mode, so changes to its Python files apply at once; rerun the script after changing C++ code. Check your changes with `pytest bindings/python/tests ai/data ai/test_value_training.py serve` and `npm run test:bots` in `web/`. The notebook kernel is registered as "PyChess (.venv)".
+
 ## Old Version Video Demo:  [Chess in Python](https://www.youtube.com/watch?v=UXmZuAgts7U)

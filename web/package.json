@@ -13,7 +13,7 @@
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:bots": "vitest run tests/bots.test.ts"
+    "test:bots": "vitest run tests/bots.test.ts tests/serverBot.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",

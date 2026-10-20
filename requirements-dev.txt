@@ -1,0 +1,32 @@
+# Python development environment for the whole repository: the chess engine's
+# bindings, the ML notebook and training module (ai/), and the move server
+# (serve/). Install with scripts/setup-dev.sh (macOS/Linux) or
+# scripts/setup-dev.ps1 (Windows), which also builds the engine itself.
+# Python 3.11 or 3.12.
+
+# Engine build and tests
+scikit-build-core==1.1.0
+pybind11==3.1.0
+pytest==9.1.1
+chess==1.11.2                    # reference rules for the engine's tests
+
+# Notebook and training (ai/)
+torch==2.14.0
+numpy==2.4.6
+pandas==3.0.6
+scikit-learn==1.9.1
+matplotlib==3.11.2
+jupyter==1.1.1
+ipykernel==7.3.0
+nbclient==0.11.0
+
+# Model export and inference
+onnx==1.23.0
+onnxscript==0.7.2
+onnxruntime==1.30.0
+onnxconverter-common==1.16.0
+
+# Move server (serve/)
+fastapi[standard]==0.142.2
+httpx==0.28.1
+modal==1.6.1

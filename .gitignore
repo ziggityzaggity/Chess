@@ -36,3 +36,6 @@ supabase/.temp/
 ai/models/
 ai/checkpoints/
 .ipynb_checkpoints/
+
+# Development virtual environment (scripts/setup-dev.*)
+.venv/
