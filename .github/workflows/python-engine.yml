@@ -60,7 +60,7 @@ jobs:
       - name: Install the notebook's training dependencies
         run: pip install pandas scikit-learn onnx onnxscript onnxruntime "fastapi[standard]==0.142.2" httpx
       - name: Tests (engine bindings, training-data selection, training module, move server)
-        run: pytest -q bindings/python/tests ai/data ai/test_value_training.py serve
+        run: pytest -q bindings/python/tests ai/data ai/test_value_training.py ai/test_dqn_training.py serve
 
   cuda:
     runs-on: ubuntu-latest
